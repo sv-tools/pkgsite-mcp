@@ -55,6 +55,7 @@ type PackagesResponse struct {
 // ModulePackageResponse is a single package listed for a module.
 type ModulePackageResponse struct {
 	Path     string `json:"path"`
+	Name     string `json:"name"`
 	Synopsis string `json:"synopsis"`
 }
 

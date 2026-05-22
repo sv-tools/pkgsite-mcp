@@ -86,6 +86,8 @@ func (c *Client) get(ctx context.Context, u *url.URL, dst any) error {
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrorBody))
+		// Drain any remainder so the connection can be reused (keep-alive).
+		_, _ = io.Copy(io.Discard, resp.Body)
 		var aerr APIError
 		if json.Unmarshal(body, &aerr) == nil && aerr.Message != "" {
 			if aerr.Code == 0 {
@@ -289,8 +291,9 @@ func (c *Client) GetPackages(ctx context.Context, modulePath, version string, op
 		return nil, err
 	}
 	items := make([]ModulePackageResponse, 0, len(resp.Packages.Items))
-	for _, p := range resp.Packages.Items {
-		items = append(items, ModulePackageResponse{Path: p.Path, Synopsis: p.Synopsis})
+	for i := range resp.Packages.Items {
+		p := &resp.Packages.Items[i]
+		items = append(items, ModulePackageResponse{Path: p.Path, Name: p.Name, Synopsis: p.Synopsis})
 	}
 	return &PaginatedResponse[ModulePackageResponse]{
 		Items:         items,

@@ -40,7 +40,7 @@ func (s *Server) registerTools(m *mcp.Server) {
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "get_imported_by",
-		Description: "List packages that import the given package (its reverse dependencies / importers).",
+		Description: "List packages from other modules that import the given package (its reverse dependencies). Importers within the same module are excluded by the API.",
 	}, s.getImportedBy)
 
 	mcp.AddTool(m, &mcp.Tool{

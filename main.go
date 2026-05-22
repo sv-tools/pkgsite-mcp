@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime/debug"
+	"syscall"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -61,7 +62,7 @@ func run(serverURL string, timeout time.Duration) error {
 	}
 
 	// Stop serving on SIGINT/SIGTERM so the process exits cleanly.
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	mcpServer := server.New(client, serverName, version)

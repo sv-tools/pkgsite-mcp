@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 )
 
@@ -136,6 +137,31 @@ func TestGetPackagesFlattens(t *testing.T) {
 	}
 	if len(res.Items) != 2 || res.Items[0].Path != "m/a" || res.Items[1].Synopsis != "B" {
 		t.Errorf("items = %+v", res.Items)
+	}
+	if res.Items[0].Name != "a" {
+		t.Errorf("Name not carried over: got %q, want %q", res.Items[0].Name, "a")
+	}
+}
+
+func TestAPIErrorFormatting(t *testing.T) {
+	candidates := &APIError{
+		Code:       400,
+		Message:    "ambiguous import path",
+		Candidates: []Candidate{{ModulePath: "example.com/a"}, {ModulePath: "example.com/b"}},
+	}
+	got := candidates.Error()
+	for _, want := range []string{"ambiguous import path", "example.com/a", "example.com/b"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("candidates message %q missing %q", got, want)
+		}
+	}
+
+	fixes := &APIError{Code: 404, Message: "not found", Fixes: []string{"check the path"}}
+	got = fixes.Error()
+	for _, want := range []string{"not found", "(HTTP 404)", "check the path"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("fixes message %q missing %q", got, want)
+		}
 	}
 }
 

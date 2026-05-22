@@ -154,5 +154,8 @@ func result[T any](v *T, err error) (*mcp.CallToolResult, T, error) {
 	if err != nil {
 		return nil, zero, err
 	}
+	if v == nil {
+		return nil, zero, nil
+	}
 	return nil, *v, nil
 }
