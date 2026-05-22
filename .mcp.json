@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "pkgsite": {
+      "command": "go",
+      "args": ["run", "."]
+    }
+  }
+}
