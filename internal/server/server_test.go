@@ -274,6 +274,27 @@ func TestGetPromptRequiresArgument(t *testing.T) {
 	}
 }
 
+func TestGetPromptFindPackageRendersNeed(t *testing.T) {
+	cs := connect(t, func(w http.ResponseWriter, r *http.Request) {})
+
+	res, err := cs.GetPrompt(context.Background(), &mcp.GetPromptParams{
+		Name:      "find_package",
+		Arguments: map[string]string{"need": "parse YAML"},
+	})
+	if err != nil {
+		t.Fatalf("GetPrompt: %v", err)
+	}
+	tc, ok := res.Messages[0].Content.(*mcp.TextContent)
+	if !ok {
+		t.Fatalf("message content type = %T, want *mcp.TextContent", res.Messages[0].Content)
+	}
+	for _, want := range []string{"parse YAML", "search", "get_package"} {
+		if !strings.Contains(tc.Text, want) {
+			t.Errorf("prompt text missing %q:\n%s", want, tc.Text)
+		}
+	}
+}
+
 func contentText(res *mcp.CallToolResult) string {
 	var b strings.Builder
 	for _, c := range res.Content {

@@ -3,9 +3,26 @@ package server
 import (
 	"context"
 	"fmt"
+	"strings"
+	"text/template"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+// promptTemplates holds the prompt bodies, kept as Markdown templates under
+// docs/prompts so the prose can be edited without touching Go. Parsing at
+// startup surfaces a malformed template immediately.
+var promptTemplates = template.Must(template.ParseFS(docsFS, "docs/prompts/*.md"))
+
+// renderPrompt executes the named prompt template with data and wraps the result
+// as a single user-role message.
+func renderPrompt(name string, data any) (*mcp.GetPromptResult, error) {
+	var b strings.Builder
+	if err := promptTemplates.ExecuteTemplate(&b, name, data); err != nil {
+		return nil, fmt.Errorf("rendering prompt %s: %w", name, err)
+	}
+	return promptResult(strings.TrimSpace(b.String())), nil
+}
 
 // registerPrompts adds guided, multi-tool workflows that an assistant can offer
 // as ready-made entry points.
@@ -35,17 +52,10 @@ func auditModulePrompt(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetPr
 	if module == "" {
 		return nil, fmt.Errorf(`the "module" argument is required`)
 	}
-	target, atVersion := module, ""
-	if v := req.Params.Arguments["version"]; v != "" {
-		target = module + "@" + v
-		atVersion = " at version " + v
-	}
-	text := fmt.Sprintf(`Audit the Go module %s for supply-chain risk:
-1. Call get_vulnerabilities for %q%s to list known advisories from the Go vulnerability database.
-2. Call get_module and list_module_versions to check whether that version is the latest and when it was released.
-3. For each vulnerability, report its ID, summary, and the version that fixes it.
-Then state whether the module is safe to use and recommend an upgrade if one is warranted.`, target, module, atVersion)
-	return promptResult(text), nil
+	return renderPrompt("audit_module.md", map[string]string{
+		"Module":  module,
+		"Version": req.Params.Arguments["version"],
+	})
 }
 
 func findPackagePrompt(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
@@ -53,12 +63,7 @@ func findPackagePrompt(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetPr
 	if need == "" {
 		return nil, fmt.Errorf(`the "need" argument is required`)
 	}
-	text := fmt.Sprintf(`Find a Go package that can %s:
-1. Call search with relevant keywords.
-2. For the most promising results, call get_package to compare synopsis, latest version, and license.
-3. Optionally call get_imported_by to gauge real-world adoption.
-Recommend one package and explain why, giving its import path and a short usage note.`, need)
-	return promptResult(text), nil
+	return renderPrompt("find_package.md", map[string]string{"Need": need})
 }
 
 // promptResult wraps prompt text as a single user-role message.
