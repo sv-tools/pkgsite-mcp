@@ -102,6 +102,25 @@ func TestServerAdvertisesInstructions(t *testing.T) {
 	}
 }
 
+func TestToolDescriptionsLoadedFromDocs(t *testing.T) {
+	cs := connect(t, func(w http.ResponseWriter, r *http.Request) {})
+
+	res, err := cs.ListTools(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("ListTools: %v", err)
+	}
+	for _, tool := range res.Tools {
+		if strings.TrimSpace(tool.Description) == "" {
+			t.Errorf("tool %q has an empty description", tool.Name)
+		}
+		// The reworded get_package description steers the model to recover from
+		// an ambiguous path.
+		if tool.Name == "get_package" && !strings.Contains(tool.Description, "candidate modules") {
+			t.Errorf("get_package description missing ambiguity hint: %q", tool.Description)
+		}
+	}
+}
+
 func TestPaginatedToolAppliesDefaultLimit(t *testing.T) {
 	var gotLimit string
 	cs := connect(t, func(w http.ResponseWriter, r *http.Request) {

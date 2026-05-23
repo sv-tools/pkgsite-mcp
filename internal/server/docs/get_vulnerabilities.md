@@ -1,0 +1,1 @@
+List known vulnerabilities (Go vulnerability database) for a module at a version: advisory ID, summary, details, and the version that fixes each. Defaults to the latest version; pass the version you actually use. An empty result means none are known. Paginated.
