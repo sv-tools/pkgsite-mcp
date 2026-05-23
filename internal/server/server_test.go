@@ -102,6 +102,25 @@ func TestServerAdvertisesInstructions(t *testing.T) {
 	}
 }
 
+func TestToolDescriptionsLoadedFromDocs(t *testing.T) {
+	cs := connect(t, func(w http.ResponseWriter, r *http.Request) {})
+
+	res, err := cs.ListTools(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("ListTools: %v", err)
+	}
+	for _, tool := range res.Tools {
+		if strings.TrimSpace(tool.Description) == "" {
+			t.Errorf("tool %q has an empty description", tool.Name)
+		}
+		// The reworded get_package description steers the model to recover from
+		// an ambiguous path.
+		if tool.Name == "get_package" && !strings.Contains(tool.Description, "candidate modules") {
+			t.Errorf("get_package description missing ambiguity hint: %q", tool.Description)
+		}
+	}
+}
+
 func TestPaginatedToolAppliesDefaultLimit(t *testing.T) {
 	var gotLimit string
 	cs := connect(t, func(w http.ResponseWriter, r *http.Request) {
@@ -252,6 +271,27 @@ func TestGetPromptRequiresArgument(t *testing.T) {
 
 	if _, err := cs.GetPrompt(context.Background(), &mcp.GetPromptParams{Name: "audit_module"}); err == nil {
 		t.Fatal("expected error for missing required argument")
+	}
+}
+
+func TestGetPromptFindPackageRendersNeed(t *testing.T) {
+	cs := connect(t, func(w http.ResponseWriter, r *http.Request) {})
+
+	res, err := cs.GetPrompt(context.Background(), &mcp.GetPromptParams{
+		Name:      "find_package",
+		Arguments: map[string]string{"need": "parse YAML"},
+	})
+	if err != nil {
+		t.Fatalf("GetPrompt: %v", err)
+	}
+	tc, ok := res.Messages[0].Content.(*mcp.TextContent)
+	if !ok {
+		t.Fatalf("message content type = %T, want *mcp.TextContent", res.Messages[0].Content)
+	}
+	for _, want := range []string{"parse YAML", "search", "get_package"} {
+		if !strings.Contains(tc.Text, want) {
+			t.Errorf("prompt text missing %q:\n%s", want, tc.Text)
+		}
 	}
 }
 

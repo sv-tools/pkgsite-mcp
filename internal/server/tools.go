@@ -27,10 +27,10 @@ func limitOr(n int) int {
 
 // SearchInput is the input for the search tool.
 type SearchInput struct {
-	Query  string `json:"query" jsonschema:"search query: a package name or keywords"`
-	Symbol string `json:"symbol,omitempty" jsonschema:"restrict results to packages that export this symbol"`
-	Limit  int    `json:"limit,omitempty" jsonschema:"maximum number of results to return"`
-	Token  string `json:"token,omitempty" jsonschema:"page token from a previous response's nextPageToken"`
+	Query  string `json:"query" jsonschema:"search query: a package name or keywords, e.g. yaml or http router"`
+	Symbol string `json:"symbol,omitempty" jsonschema:"restrict results to packages that export this symbol, e.g. Marshal"`
+	Limit  int    `json:"limit,omitempty" jsonschema:"maximum results to return; omit for a server-side default"`
+	Token  string `json:"token,omitempty" jsonschema:"pagination token: pass nextPageToken from a previous response to fetch the next page"`
 }
 
 func (s *Server) search(ctx context.Context, _ *mcp.CallToolRequest, in SearchInput) (*mcp.CallToolResult, pkgsite.PaginatedResponse[pkgsite.SearchResult], error) {
@@ -43,15 +43,15 @@ func (s *Server) search(ctx context.Context, _ *mcp.CallToolRequest, in SearchIn
 
 // GetPackageInput is the input for the get_package tool.
 type GetPackageInput struct {
-	Path     string `json:"path" jsonschema:"import path of the package, e.g. github.com/google/uuid"`
-	Version  string `json:"version,omitempty" jsonschema:"module version; defaults to the latest version"`
-	Module   string `json:"module,omitempty" jsonschema:"module path to disambiguate an ambiguous package path"`
-	Doc      string `json:"doc,omitempty" jsonschema:"render documentation in this format: text, md, or html"`
-	Examples bool   `json:"examples,omitempty" jsonschema:"include examples (requires doc)"`
-	Imports  bool   `json:"imports,omitempty" jsonschema:"include the list of imported packages"`
-	Licenses bool   `json:"licenses,omitempty" jsonschema:"include license information"`
-	GOOS     string `json:"goos,omitempty" jsonschema:"target GOOS for build-constrained documentation"`
-	GOARCH   string `json:"goarch,omitempty" jsonschema:"target GOARCH for build-constrained documentation"`
+	Path     string `json:"path" jsonschema:"import path of the package, e.g. github.com/google/uuid (or a standard-library path like net/http)"`
+	Version  string `json:"version,omitempty" jsonschema:"module version, e.g. v1.6.0; omit for the latest"`
+	Module   string `json:"module,omitempty" jsonschema:"module path to disambiguate an ambiguous package path; set to one of the candidates from a failed call"`
+	Doc      string `json:"doc,omitempty" jsonschema:"documentation format: md, text, or html. Prefer md or text; html is verbose. Omit to skip docs."`
+	Examples bool   `json:"examples,omitempty" jsonschema:"include runnable examples in the documentation (requires doc)"`
+	Imports  bool   `json:"imports,omitempty" jsonschema:"include the list of packages this package imports"`
+	Licenses bool   `json:"licenses,omitempty" jsonschema:"include full license info (types and text)"`
+	GOOS     string `json:"goos,omitempty" jsonschema:"target GOOS for build-constrained docs, e.g. linux"`
+	GOARCH   string `json:"goarch,omitempty" jsonschema:"target GOARCH for build-constrained docs, e.g. amd64"`
 }
 
 func (s *Server) getPackage(ctx context.Context, _ *mcp.CallToolRequest, in GetPackageInput) (*mcp.CallToolResult, pkgsite.Package, error) {
@@ -69,13 +69,13 @@ func (s *Server) getPackage(ctx context.Context, _ *mcp.CallToolRequest, in GetP
 
 // GetSymbolsInput is the input for the get_package_symbols tool.
 type GetSymbolsInput struct {
-	Path    string `json:"path" jsonschema:"import path of the package, e.g. github.com/google/uuid"`
-	Version string `json:"version,omitempty" jsonschema:"module version; defaults to the latest version"`
-	Module  string `json:"module,omitempty" jsonschema:"module path to disambiguate an ambiguous package path"`
-	GOOS    string `json:"goos,omitempty" jsonschema:"target GOOS"`
-	GOARCH  string `json:"goarch,omitempty" jsonschema:"target GOARCH"`
-	Limit   int    `json:"limit,omitempty" jsonschema:"maximum number of symbols to return"`
-	Token   string `json:"token,omitempty" jsonschema:"page token from a previous response's nextPageToken"`
+	Path    string `json:"path" jsonschema:"import path of the package, e.g. github.com/google/uuid (or a standard-library path like net/http)"`
+	Version string `json:"version,omitempty" jsonschema:"module version, e.g. v1.6.0; omit for the latest"`
+	Module  string `json:"module,omitempty" jsonschema:"module path to disambiguate an ambiguous package path; set to one of the candidates from a failed call"`
+	GOOS    string `json:"goos,omitempty" jsonschema:"target GOOS, e.g. linux"`
+	GOARCH  string `json:"goarch,omitempty" jsonschema:"target GOARCH, e.g. amd64"`
+	Limit   int    `json:"limit,omitempty" jsonschema:"maximum symbols to return; omit for a server-side default"`
+	Token   string `json:"token,omitempty" jsonschema:"pagination token: pass nextPageToken from a previous response to fetch the next page"`
 }
 
 func (s *Server) getSymbols(ctx context.Context, _ *mcp.CallToolRequest, in GetSymbolsInput) (*mcp.CallToolResult, pkgsite.PaginatedResponse[pkgsite.Symbol], error) {
@@ -90,11 +90,11 @@ func (s *Server) getSymbols(ctx context.Context, _ *mcp.CallToolRequest, in GetS
 
 // GetImportedByInput is the input for the get_imported_by tool.
 type GetImportedByInput struct {
-	Path    string `json:"path" jsonschema:"import path of the package to find importers of"`
-	Version string `json:"version,omitempty" jsonschema:"module version; defaults to the latest version"`
-	Module  string `json:"module,omitempty" jsonschema:"module path to disambiguate an ambiguous package path"`
-	Limit   int    `json:"limit,omitempty" jsonschema:"maximum number of importers to return"`
-	Token   string `json:"token,omitempty" jsonschema:"page token from a previous response's nextPageToken"`
+	Path    string `json:"path" jsonschema:"import path of the package to find importers of, e.g. github.com/google/uuid"`
+	Version string `json:"version,omitempty" jsonschema:"module version, e.g. v1.6.0; omit for the latest"`
+	Module  string `json:"module,omitempty" jsonschema:"module path to disambiguate an ambiguous package path; set to one of the candidates from a failed call"`
+	Limit   int    `json:"limit,omitempty" jsonschema:"maximum importers to return; omit for a server-side default"`
+	Token   string `json:"token,omitempty" jsonschema:"pagination token: pass nextPageToken from a previous response to fetch the next page"`
 }
 
 func (s *Server) getImportedBy(ctx context.Context, _ *mcp.CallToolRequest, in GetImportedByInput) (*mcp.CallToolResult, pkgsite.PackageImportedBy, error) {
@@ -107,10 +107,10 @@ func (s *Server) getImportedBy(ctx context.Context, _ *mcp.CallToolRequest, in G
 
 // GetModuleInput is the input for the get_module tool.
 type GetModuleInput struct {
-	Path     string `json:"path" jsonschema:"module path, e.g. github.com/google/uuid"`
-	Version  string `json:"version,omitempty" jsonschema:"module version; defaults to the latest version"`
-	Readme   bool   `json:"readme,omitempty" jsonschema:"include the README contents"`
-	Licenses bool   `json:"licenses,omitempty" jsonschema:"include license information"`
+	Path     string `json:"path" jsonschema:"module path, e.g. github.com/google/uuid (the module, not a package within it)"`
+	Version  string `json:"version,omitempty" jsonschema:"module version, e.g. v1.6.0; omit for the latest"`
+	Readme   bool   `json:"readme,omitempty" jsonschema:"include the module's README contents"`
+	Licenses bool   `json:"licenses,omitempty" jsonschema:"include full license info (types and text)"`
 }
 
 func (s *Server) getModule(ctx context.Context, _ *mcp.CallToolRequest, in GetModuleInput) (*mcp.CallToolResult, pkgsite.Module, error) {
@@ -123,9 +123,9 @@ func (s *Server) getModule(ctx context.Context, _ *mcp.CallToolRequest, in GetMo
 
 // ListVersionsInput is the input for the list_module_versions tool.
 type ListVersionsInput struct {
-	Path  string `json:"path" jsonschema:"module path, e.g. github.com/google/uuid"`
-	Limit int    `json:"limit,omitempty" jsonschema:"maximum number of versions to return"`
-	Token string `json:"token,omitempty" jsonschema:"page token from a previous response's nextPageToken"`
+	Path  string `json:"path" jsonschema:"module path, e.g. github.com/google/uuid (the module, not a package within it)"`
+	Limit int    `json:"limit,omitempty" jsonschema:"maximum versions to return; omit for a server-side default"`
+	Token string `json:"token,omitempty" jsonschema:"pagination token: pass nextPageToken from a previous response to fetch the next page"`
 }
 
 func (s *Server) listVersions(ctx context.Context, _ *mcp.CallToolRequest, in ListVersionsInput) (*mcp.CallToolResult, pkgsite.PaginatedResponse[pkgsite.VersionResponse], error) {
@@ -135,10 +135,10 @@ func (s *Server) listVersions(ctx context.Context, _ *mcp.CallToolRequest, in Li
 
 // ListPackagesInput is the input for the list_module_packages tool.
 type ListPackagesInput struct {
-	ModulePath string `json:"modulePath" jsonschema:"module path, e.g. github.com/google/uuid"`
-	Version    string `json:"version,omitempty" jsonschema:"module version; defaults to the latest version"`
-	Limit      int    `json:"limit,omitempty" jsonschema:"maximum number of packages to return"`
-	Token      string `json:"token,omitempty" jsonschema:"page token from a previous response's nextPageToken"`
+	ModulePath string `json:"modulePath" jsonschema:"module path, e.g. github.com/google/uuid (the module, not a package within it)"`
+	Version    string `json:"version,omitempty" jsonschema:"module version, e.g. v1.6.0; omit for the latest"`
+	Limit      int    `json:"limit,omitempty" jsonschema:"maximum packages to return; omit for a server-side default"`
+	Token      string `json:"token,omitempty" jsonschema:"pagination token: pass nextPageToken from a previous response to fetch the next page"`
 }
 
 func (s *Server) listPackages(ctx context.Context, _ *mcp.CallToolRequest, in ListPackagesInput) (*mcp.CallToolResult, pkgsite.PaginatedResponse[pkgsite.ModulePackageResponse], error) {
@@ -148,10 +148,10 @@ func (s *Server) listPackages(ctx context.Context, _ *mcp.CallToolRequest, in Li
 
 // GetVulnsInput is the input for the get_vulnerabilities tool.
 type GetVulnsInput struct {
-	Path    string `json:"path" jsonschema:"module path, e.g. github.com/google/uuid"`
-	Version string `json:"version,omitempty" jsonschema:"module version; defaults to the latest version"`
-	Limit   int    `json:"limit,omitempty" jsonschema:"maximum number of vulnerabilities to return"`
-	Token   string `json:"token,omitempty" jsonschema:"page token from a previous response's nextPageToken"`
+	Path    string `json:"path" jsonschema:"module path, e.g. github.com/google/uuid (the module, not a package within it)"`
+	Version string `json:"version,omitempty" jsonschema:"module version, e.g. v1.6.0; omit for the latest"`
+	Limit   int    `json:"limit,omitempty" jsonschema:"maximum vulnerabilities to return; omit for a server-side default"`
+	Token   string `json:"token,omitempty" jsonschema:"pagination token: pass nextPageToken from a previous response to fetch the next page"`
 }
 
 func (s *Server) getVulns(ctx context.Context, _ *mcp.CallToolRequest, in GetVulnsInput) (*mcp.CallToolResult, pkgsite.PaginatedResponse[pkgsite.Vulnerability], error) {

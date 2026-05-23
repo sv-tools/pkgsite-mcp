@@ -1,0 +1,1 @@
+Get details for a package by import path: module, version, synopsis, and optionally rendered docs (set doc=md or text — html is verbose), imports, and licenses. For the full API surface use get_package_symbols. If the path is ambiguous the call returns candidate modules — retry with the module argument set.

@@ -1,0 +1,1 @@
+Get module metadata by module path: version, commit time, repository URL, whether it has a go.mod, and optionally README and licenses. See list_module_versions for versions and list_module_packages for its packages.

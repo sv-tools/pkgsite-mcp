@@ -3,20 +3,34 @@
 package server
 
 import (
-	_ "embed"
+	"embed"
+	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/sv-tools/pkgsite-mcp/internal/pkgsite"
 )
 
+// docsFS holds the tool and server prose. Keeping the text in standalone
+// Markdown files lets it be edited without touching Go code.
+//
+//go:embed docs
+var docsFS embed.FS
+
+// doc returns the trimmed contents of an embedded Markdown file under docs/. It
+// panics if the file is missing, since the docs are embedded at build time and
+// an absent file is a packaging bug, surfaced immediately by New.
+func doc(name string) string {
+	b, err := docsFS.ReadFile("docs/" + name)
+	if err != nil {
+		panic("server: missing embedded doc " + name + ": " + err.Error())
+	}
+	return strings.TrimSpace(string(b))
+}
+
 // instructions is advertised to clients during initialization. It orients the
 // model on the package-vs-module distinction, error recovery, and pagination.
-// The prose lives in a standalone Markdown file so it can be edited without
-// touching Go code.
-//
-//go:embed docs/instructions.md
-var instructions string
+var instructions = doc("instructions.md")
 
 // Server holds the dependencies shared by all tool handlers.
 type Server struct {
@@ -49,49 +63,49 @@ func readOnly() *mcp.ToolAnnotations {
 func (s *Server) registerTools(m *mcp.Server) {
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "search",
-		Description: "Search pkg.go.dev for Go packages by name or keywords. Returns matching package paths with synopses.",
+		Description: doc("search.md"),
 		Annotations: readOnly(),
 	}, s.search)
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "get_package",
-		Description: "Get details about a Go package at an import path: module path, version, synopsis, and optionally rendered documentation, imports, and licenses.",
+		Description: doc("get_package.md"),
 		Annotations: readOnly(),
 	}, s.getPackage)
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "get_package_symbols",
-		Description: "List the exported symbols (functions, types, methods, variables, constants) of a Go package.",
+		Description: doc("get_package_symbols.md"),
 		Annotations: readOnly(),
 	}, s.getSymbols)
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "get_imported_by",
-		Description: "List packages from other modules that import the given package (its reverse dependencies). Importers within the same module are excluded by the API.",
+		Description: doc("get_imported_by.md"),
 		Annotations: readOnly(),
 	}, s.getImportedBy)
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "get_module",
-		Description: "Get details about a Go module: version, commit time, repository URL, and optionally README and license information.",
+		Description: doc("get_module.md"),
 		Annotations: readOnly(),
 	}, s.getModule)
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "list_module_versions",
-		Description: "List the available versions of a Go module.",
+		Description: doc("list_module_versions.md"),
 		Annotations: readOnly(),
 	}, s.listVersions)
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "list_module_packages",
-		Description: "List the packages contained in a Go module at a given version.",
+		Description: doc("list_module_packages.md"),
 		Annotations: readOnly(),
 	}, s.listPackages)
 
 	mcp.AddTool(m, &mcp.Tool{
 		Name:        "get_vulnerabilities",
-		Description: "List known vulnerabilities (from the Go vulnerability database) affecting a module path and version.",
+		Description: doc("get_vulnerabilities.md"),
 		Annotations: readOnly(),
 	}, s.getVulns)
 }
