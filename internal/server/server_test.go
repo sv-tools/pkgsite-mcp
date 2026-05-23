@@ -66,6 +66,72 @@ func TestListToolsRegistersAll(t *testing.T) {
 	}
 }
 
+func TestToolsAreAnnotatedReadOnly(t *testing.T) {
+	cs := connect(t, func(w http.ResponseWriter, r *http.Request) {})
+
+	res, err := cs.ListTools(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("ListTools: %v", err)
+	}
+	for _, tool := range res.Tools {
+		if tool.Annotations == nil {
+			t.Errorf("tool %q has no annotations", tool.Name)
+			continue
+		}
+		if !tool.Annotations.ReadOnlyHint {
+			t.Errorf("tool %q: ReadOnlyHint = false, want true", tool.Name)
+		}
+		if tool.Annotations.OpenWorldHint == nil || !*tool.Annotations.OpenWorldHint {
+			t.Errorf("tool %q: OpenWorldHint = %v, want true", tool.Name, tool.Annotations.OpenWorldHint)
+		}
+	}
+}
+
+func TestServerAdvertisesInstructions(t *testing.T) {
+	cs := connect(t, func(w http.ResponseWriter, r *http.Request) {})
+
+	got := cs.InitializeResult().Instructions
+	if got == "" {
+		t.Fatal("server advertised empty instructions")
+	}
+	// A couple of load-bearing phrases the model relies on.
+	for _, want := range []string{"pkg.go.dev", "nextPageToken", "module"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("instructions missing %q", want)
+		}
+	}
+}
+
+func TestPaginatedToolAppliesDefaultLimit(t *testing.T) {
+	var gotLimit string
+	cs := connect(t, func(w http.ResponseWriter, r *http.Request) {
+		gotLimit = r.URL.Query().Get("limit")
+		_, _ = w.Write([]byte(`{"items":[],"total":0}`))
+	})
+
+	// No limit argument: the server should inject the default.
+	if _, err := cs.CallTool(context.Background(), &mcp.CallToolParams{
+		Name:      "search",
+		Arguments: map[string]any{"query": "uuid"},
+	}); err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	if want := "50"; gotLimit != want {
+		t.Errorf("default limit = %q, want %q", gotLimit, want)
+	}
+
+	// An explicit limit is forwarded unchanged.
+	if _, err := cs.CallTool(context.Background(), &mcp.CallToolParams{
+		Name:      "search",
+		Arguments: map[string]any{"query": "uuid", "limit": 3},
+	}); err != nil {
+		t.Fatalf("CallTool: %v", err)
+	}
+	if want := "3"; gotLimit != want {
+		t.Errorf("explicit limit = %q, want %q", gotLimit, want)
+	}
+}
+
 func TestSearchToolReturnsStructuredContent(t *testing.T) {
 	const body = `{"items":[{"packagePath":"github.com/google/uuid","synopsis":"UUIDs"}],"total":1}`
 	cs := connect(t, func(w http.ResponseWriter, r *http.Request) {

@@ -8,6 +8,19 @@ import (
 	"github.com/sv-tools/pkgsite-mcp/internal/pkgsite"
 )
 
+// defaultLimit caps paginated tools when the caller omits an explicit limit, so
+// a single call cannot flood the model's context with an unbounded page. The
+// caller can always request more by setting a higher limit and paging via token.
+const defaultLimit = 50
+
+// limitOr applies defaultLimit when n is unset (<= 0).
+func limitOr(n int) int {
+	if n <= 0 {
+		return defaultLimit
+	}
+	return n
+}
+
 // Each Input struct below is the typed argument for one MCP tool. Fields
 // without ",omitempty" are required; the SDK infers the JSON schema (including
 // the descriptions in the `jsonschema` tags) from these types.
@@ -23,7 +36,7 @@ type SearchInput struct {
 func (s *Server) search(ctx context.Context, _ *mcp.CallToolRequest, in SearchInput) (*mcp.CallToolResult, pkgsite.PaginatedResponse[pkgsite.SearchResult], error) {
 	res, err := s.client.Search(ctx, in.Query, pkgsite.SearchOptions{
 		Symbol:            in.Symbol,
-		PaginationOptions: pkgsite.PaginationOptions{Limit: in.Limit, Token: in.Token},
+		PaginationOptions: pkgsite.PaginationOptions{Limit: limitOr(in.Limit), Token: in.Token},
 	})
 	return result(res, err)
 }
@@ -70,7 +83,7 @@ func (s *Server) getSymbols(ctx context.Context, _ *mcp.CallToolRequest, in GetS
 		Module:            in.Module,
 		GOOS:              in.GOOS,
 		GOARCH:            in.GOARCH,
-		PaginationOptions: pkgsite.PaginationOptions{Limit: in.Limit, Token: in.Token},
+		PaginationOptions: pkgsite.PaginationOptions{Limit: limitOr(in.Limit), Token: in.Token},
 	})
 	return result(res, err)
 }
@@ -87,7 +100,7 @@ type GetImportedByInput struct {
 func (s *Server) getImportedBy(ctx context.Context, _ *mcp.CallToolRequest, in GetImportedByInput) (*mcp.CallToolResult, pkgsite.PackageImportedBy, error) {
 	res, err := s.client.GetImportedBy(ctx, in.Path, in.Version, pkgsite.ImportedByOptions{
 		Module:            in.Module,
-		PaginationOptions: pkgsite.PaginationOptions{Limit: in.Limit, Token: in.Token},
+		PaginationOptions: pkgsite.PaginationOptions{Limit: limitOr(in.Limit), Token: in.Token},
 	})
 	return result(res, err)
 }
@@ -116,7 +129,7 @@ type ListVersionsInput struct {
 }
 
 func (s *Server) listVersions(ctx context.Context, _ *mcp.CallToolRequest, in ListVersionsInput) (*mcp.CallToolResult, pkgsite.PaginatedResponse[pkgsite.VersionResponse], error) {
-	res, err := s.client.GetVersions(ctx, in.Path, pkgsite.PaginationOptions{Limit: in.Limit, Token: in.Token})
+	res, err := s.client.GetVersions(ctx, in.Path, pkgsite.PaginationOptions{Limit: limitOr(in.Limit), Token: in.Token})
 	return result(res, err)
 }
 
@@ -129,7 +142,7 @@ type ListPackagesInput struct {
 }
 
 func (s *Server) listPackages(ctx context.Context, _ *mcp.CallToolRequest, in ListPackagesInput) (*mcp.CallToolResult, pkgsite.PaginatedResponse[pkgsite.ModulePackageResponse], error) {
-	res, err := s.client.GetPackages(ctx, in.ModulePath, in.Version, pkgsite.PaginationOptions{Limit: in.Limit, Token: in.Token})
+	res, err := s.client.GetPackages(ctx, in.ModulePath, in.Version, pkgsite.PaginationOptions{Limit: limitOr(in.Limit), Token: in.Token})
 	return result(res, err)
 }
 
@@ -142,7 +155,7 @@ type GetVulnsInput struct {
 }
 
 func (s *Server) getVulns(ctx context.Context, _ *mcp.CallToolRequest, in GetVulnsInput) (*mcp.CallToolResult, pkgsite.PaginatedResponse[pkgsite.Vulnerability], error) {
-	res, err := s.client.GetVulns(ctx, in.Path, in.Version, pkgsite.PaginationOptions{Limit: in.Limit, Token: in.Token})
+	res, err := s.client.GetVulns(ctx, in.Path, in.Version, pkgsite.PaginationOptions{Limit: limitOr(in.Limit), Token: in.Token})
 	return result(res, err)
 }
 
