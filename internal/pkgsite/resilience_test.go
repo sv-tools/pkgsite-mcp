@@ -1,10 +1,12 @@
 package pkgsite
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -85,7 +87,7 @@ func TestNonRetryableStatusNotRetried(t *testing.T) {
 
 func TestCacheServesRepeatRequests(t *testing.T) {
 	srv, calls := countingServer(t, 0, 0, `{"path":"m","version":"v1.0.0"}`)
-	c, _ := New(srv.URL, WithCache(time.Minute, 8))
+	c, _ := New(srv.URL, WithCache(time.Minute, 8, 1<<20))
 
 	for i := 0; i < 3; i++ {
 		mod, err := c.GetModule(context.Background(), "m", "", ModuleOptions{})
@@ -103,12 +105,28 @@ func TestCacheServesRepeatRequests(t *testing.T) {
 
 func TestCacheKeyedByURL(t *testing.T) {
 	srv, calls := countingServer(t, 0, 0, `{"path":"m"}`)
-	c, _ := New(srv.URL, WithCache(time.Minute, 8))
+	c, _ := New(srv.URL, WithCache(time.Minute, 8, 1<<20))
 
 	_, _ = c.GetModule(context.Background(), "a", "", ModuleOptions{})
 	_, _ = c.GetModule(context.Background(), "b", "", ModuleOptions{})
 	if got := calls.Load(); got != 2 {
 		t.Errorf("calls = %d, want 2 (distinct paths are distinct keys)", got)
+	}
+}
+
+func TestRejectsOversizedResponseBody(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(bytes.Repeat([]byte("a"), maxBodyBytes+1))
+	}))
+	t.Cleanup(srv.Close)
+	c, _ := New(srv.URL)
+
+	_, err := c.GetModule(context.Background(), "m", "", ModuleOptions{})
+	if err == nil {
+		t.Fatal("expected error for oversized response body")
+	}
+	if !strings.Contains(err.Error(), "exceeds") {
+		t.Errorf("err = %v, want it to mention the size limit", err)
 	}
 }
 

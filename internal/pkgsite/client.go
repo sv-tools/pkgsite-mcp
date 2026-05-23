@@ -3,6 +3,7 @@ package pkgsite
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand/v2"
@@ -74,15 +75,16 @@ func WithRetry(maxRetries int, baseDelay time.Duration) Option {
 	}
 }
 
-// WithCache caches successful responses for ttl, keyed by request URL, bounded
-// to maxEntries. Because version-pinned data is immutable and "latest" lookups
-// tolerate a short staleness window, this safely avoids refetching during an
-// assistant's multi-step exploration. A non-positive ttl or maxEntries disables
-// caching.
-func WithCache(ttl time.Duration, maxEntries int) Option {
+// WithCache caches successful responses for ttl, keyed by request URL, evicting
+// least-recently-used entries to stay within maxEntries and maxBytes (each a
+// non-positive value meaning unbounded on that axis). Because version-pinned
+// data is immutable and "latest" lookups tolerate a short staleness window, this
+// safely avoids refetching during an assistant's multi-step exploration. A
+// non-positive ttl, or both bounds non-positive, disables caching.
+func WithCache(ttl time.Duration, maxEntries int, maxBytes int64) Option {
 	return func(c *Client) {
-		if ttl > 0 && maxEntries > 0 {
-			c.cache = newCache(ttl, maxEntries)
+		if ttl > 0 && (maxEntries > 0 || maxBytes > 0) {
+			c.cache = newCache(ttl, maxEntries, maxBytes)
 		}
 	}
 }
@@ -146,7 +148,9 @@ func (c *Client) fetch(ctx context.Context, u *url.URL) ([]byte, error) {
 			return nil, err
 		}
 		if werr := wait(ctx, c.backoff(attempt, retryAfter)); werr != nil {
-			return nil, err
+			// The context was cancelled mid-backoff; surface both the cause we
+			// were retrying and the cancellation that stopped us.
+			return nil, errors.Join(err, werr)
 		}
 	}
 }
@@ -170,9 +174,14 @@ func (c *Client) try(ctx context.Context, u *url.URL) (body []byte, retryAfter t
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK {
-		b, rerr := io.ReadAll(io.LimitReader(resp.Body, maxBodyBytes))
+		// Read one byte past the cap so an oversized body is detected and
+		// reported, rather than silently truncated into invalid JSON.
+		b, rerr := io.ReadAll(io.LimitReader(resp.Body, maxBodyBytes+1))
 		if rerr != nil {
 			return nil, 0, ctx.Err() == nil, fmt.Errorf("reading response: %w", rerr)
+		}
+		if len(b) > maxBodyBytes {
+			return nil, 0, false, fmt.Errorf("response body exceeds %d bytes", maxBodyBytes)
 		}
 		return b, 0, false, nil
 	}
@@ -234,6 +243,11 @@ func parseRetryAfter(v string) time.Duration {
 func (c *Client) backoff(attempt int, retryAfter time.Duration) time.Duration {
 	if retryAfter > 0 {
 		return min(retryAfter, maxRetryDelay)
+	}
+	// Cap the shift so retryBase<<attempt cannot overflow the duration and wrap
+	// to a misleadingly small value; past this point it is pinned to the max.
+	if attempt > 30 {
+		attempt = 30
 	}
 	d := c.retryBase << attempt
 	if d <= 0 || d > maxRetryDelay {
