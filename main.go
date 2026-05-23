@@ -54,15 +54,20 @@ func main() {
 	}
 }
 
-// cacheMaxEntries bounds the response cache.
-const cacheMaxEntries = 256
+// cacheMaxEntries and cacheMaxBytes bound the response cache by entry count and
+// total buffered body bytes, respectively, so large doc/README/license payloads
+// cannot grow it without limit.
+const (
+	cacheMaxEntries = 256
+	cacheMaxBytes   = 64 << 20 // 64 MiB
+)
 
 func run(serverURL string, timeout time.Duration, retries int, cacheTTL time.Duration) error {
 	client, err := pkgsite.New(serverURL,
 		pkgsite.WithHTTPClient(&http.Client{Timeout: timeout}),
 		pkgsite.WithUserAgent(fmt.Sprintf("%s/%s", serverName, version)),
 		pkgsite.WithRetry(retries, 0),
-		pkgsite.WithCache(cacheTTL, cacheMaxEntries),
+		pkgsite.WithCache(cacheTTL, cacheMaxEntries, cacheMaxBytes),
 	)
 	if err != nil {
 		return err
