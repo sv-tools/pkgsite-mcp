@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -16,14 +17,25 @@ const DefaultServer = "https://pkg.go.dev"
 
 const defaultUserAgent = "pkgsite-mcp"
 
-// maxErrorBody bounds how much of an error response body we read.
-const maxErrorBody = 1 << 20 // 1 MiB
+const (
+	// maxErrorBody bounds how much of an error response body we read.
+	maxErrorBody = 1 << 20 // 1 MiB
+	// maxBodyBytes bounds how much of a success response body we buffer.
+	maxBodyBytes = 8 << 20 // 8 MiB
+	// defaultRetryBase is the base delay for exponential backoff.
+	defaultRetryBase = 200 * time.Millisecond
+	// maxRetryDelay caps any single backoff wait.
+	maxRetryDelay = 5 * time.Second
+)
 
 // Client fetches data from the pkg.go.dev v1beta API.
 type Client struct {
 	server     *url.URL
 	httpClient *http.Client
 	userAgent  string
+	maxRetries int           // additional attempts after the first; 0 disables retries
+	retryBase  time.Duration // base delay for exponential backoff
+	cache      *cache        // response cache; nil disables caching
 }
 
 // Option configures a Client.
@@ -48,6 +60,33 @@ func WithUserAgent(ua string) Option {
 	}
 }
 
+// WithRetry retries transient failures (network errors and HTTP 429/5xx) up to
+// maxRetries additional times, with exponential backoff starting at baseDelay.
+// A maxRetries of 0 disables retries. A baseDelay <= 0 keeps the default.
+func WithRetry(maxRetries int, baseDelay time.Duration) Option {
+	return func(c *Client) {
+		if maxRetries >= 0 {
+			c.maxRetries = maxRetries
+		}
+		if baseDelay > 0 {
+			c.retryBase = baseDelay
+		}
+	}
+}
+
+// WithCache caches successful responses for ttl, keyed by request URL, bounded
+// to maxEntries. Because version-pinned data is immutable and "latest" lookups
+// tolerate a short staleness window, this safely avoids refetching during an
+// assistant's multi-step exploration. A non-positive ttl or maxEntries disables
+// caching.
+func WithCache(ttl time.Duration, maxEntries int) Option {
+	return func(c *Client) {
+		if ttl > 0 && maxEntries > 0 {
+			c.cache = newCache(ttl, maxEntries)
+		}
+	}
+}
+
 // New creates a Client that talks to the given server (e.g. DefaultServer).
 func New(server string, opts ...Option) (*Client, error) {
 	u, err := url.Parse(server)
@@ -61,6 +100,7 @@ func New(server string, opts ...Option) (*Client, error) {
 		server:     u,
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 		userAgent:  defaultUserAgent,
+		retryBase:  defaultRetryBase,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -68,40 +108,154 @@ func New(server string, opts ...Option) (*Client, error) {
 	return c, nil
 }
 
-// get fetches u and decodes the JSON response into dst. Non-200 responses are
-// decoded into an *APIError when possible.
+// get fetches u and decodes the JSON response into dst, serving from cache when
+// enabled and retrying transient failures. Non-200 responses are decoded into an
+// *APIError when possible.
 func (c *Client) get(ctx context.Context, u *url.URL, dst any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	key := u.String()
+	if c.cache != nil {
+		if body, ok := c.cache.get(key); ok {
+			return decode(body, dst)
+		}
+	}
+	body, err := c.fetch(ctx, u)
 	if err != nil {
 		return err
+	}
+	if c.cache != nil {
+		c.cache.set(key, body)
+	}
+	return decode(body, dst)
+}
+
+func decode(body []byte, dst any) error {
+	if err := json.Unmarshal(body, dst); err != nil {
+		return fmt.Errorf("decoding response: %w", err)
+	}
+	return nil
+}
+
+// fetch performs the GET, retrying transient failures up to c.maxRetries times.
+func (c *Client) fetch(ctx context.Context, u *url.URL) ([]byte, error) {
+	for attempt := 0; ; attempt++ {
+		body, retryAfter, retryable, err := c.try(ctx, u)
+		if err == nil {
+			return body, nil
+		}
+		if !retryable || attempt >= c.maxRetries {
+			return nil, err
+		}
+		if werr := wait(ctx, c.backoff(attempt, retryAfter)); werr != nil {
+			return nil, err
+		}
+	}
+}
+
+// try performs a single GET attempt. On a 200 it returns the body bytes. On a
+// non-200 or transport error it returns an error; retryable reports whether the
+// caller should retry, and retryAfter is any server-advised delay.
+func (c *Client) try(ctx context.Context, u *url.URL) (body []byte, retryAfter time.Duration, retryable bool, err error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, 0, false, err
 	}
 	req.Header.Set("User-Agent", c.userAgent)
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return err
+		// Transport error: retry unless the context itself was cancelled.
+		return nil, 0, ctx.Err() == nil, err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrorBody))
-		// Drain any remainder so the connection can be reused (keep-alive).
-		_, _ = io.Copy(io.Discard, resp.Body)
-		var aerr APIError
-		if json.Unmarshal(body, &aerr) == nil && aerr.Message != "" {
-			if aerr.Code == 0 {
-				aerr.Code = resp.StatusCode
-			}
-			return &aerr
+	if resp.StatusCode == http.StatusOK {
+		b, rerr := io.ReadAll(io.LimitReader(resp.Body, maxBodyBytes))
+		if rerr != nil {
+			return nil, 0, ctx.Err() == nil, fmt.Errorf("reading response: %w", rerr)
 		}
-		return &APIError{Code: resp.StatusCode, Message: http.StatusText(resp.StatusCode)}
+		return b, 0, false, nil
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(dst); err != nil {
-		return fmt.Errorf("decoding response: %w", err)
+	errBody, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrorBody))
+	// Drain any remainder so the connection can be reused (keep-alive).
+	_, _ = io.Copy(io.Discard, resp.Body)
+	return nil, parseRetryAfter(resp.Header.Get("Retry-After")), retryableStatus(resp.StatusCode), parseAPIError(resp.StatusCode, errBody)
+}
+
+// parseAPIError builds a structured error from a non-200 response body, falling
+// back to the HTTP status text when the body is not a recognizable API error.
+func parseAPIError(status int, body []byte) *APIError {
+	var aerr APIError
+	if json.Unmarshal(body, &aerr) == nil && aerr.Message != "" {
+		if aerr.Code == 0 {
+			aerr.Code = status
+		}
+		return &aerr
 	}
-	return nil
+	return &APIError{Code: status, Message: http.StatusText(status)}
+}
+
+// retryableStatus reports whether an HTTP status warrants a retry.
+func retryableStatus(code int) bool {
+	switch code {
+	case http.StatusTooManyRequests,
+		http.StatusInternalServerError,
+		http.StatusBadGateway,
+		http.StatusServiceUnavailable,
+		http.StatusGatewayTimeout:
+		return true
+	}
+	return false
+}
+
+// parseRetryAfter interprets a Retry-After header (delay-seconds or HTTP-date),
+// returning 0 when absent or unparseable.
+func parseRetryAfter(v string) time.Duration {
+	if v == "" {
+		return 0
+	}
+	if secs, err := strconv.Atoi(v); err == nil {
+		if secs <= 0 {
+			return 0
+		}
+		return time.Duration(secs) * time.Second
+	}
+	if t, err := http.ParseTime(v); err == nil {
+		if d := time.Until(t); d > 0 {
+			return d
+		}
+	}
+	return 0
+}
+
+// backoff returns the delay before retry attempt+1, preferring a server-advised
+// Retry-After and otherwise using exponential backoff with full jitter.
+func (c *Client) backoff(attempt int, retryAfter time.Duration) time.Duration {
+	if retryAfter > 0 {
+		return min(retryAfter, maxRetryDelay)
+	}
+	d := c.retryBase << attempt
+	if d <= 0 || d > maxRetryDelay {
+		d = maxRetryDelay
+	}
+	half := d / 2
+	return half + time.Duration(rand.Int64N(int64(half)+1))
+}
+
+// wait sleeps for d, returning early if ctx is cancelled.
+func wait(ctx context.Context, d time.Duration) error {
+	if d <= 0 {
+		return nil
+	}
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-t.C:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // endpoint builds a request URL for the given path segments and query values.

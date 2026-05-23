@@ -37,6 +37,8 @@ func main() {
 
 	serverURL := flag.String("server", pkgsite.DefaultServer, "pkg.go.dev API server URL")
 	timeout := flag.Duration("timeout", 30*time.Second, "HTTP request timeout")
+	retries := flag.Int("retries", 2, "retry attempts for transient failures (429/5xx)")
+	cacheTTL := flag.Duration("cache-ttl", 5*time.Minute, "response cache TTL; 0 disables caching")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 
@@ -47,15 +49,20 @@ func main() {
 		return
 	}
 
-	if err := run(*serverURL, *timeout); err != nil {
+	if err := run(*serverURL, *timeout, *retries, *cacheTTL); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func run(serverURL string, timeout time.Duration) error {
+// cacheMaxEntries bounds the response cache.
+const cacheMaxEntries = 256
+
+func run(serverURL string, timeout time.Duration, retries int, cacheTTL time.Duration) error {
 	client, err := pkgsite.New(serverURL,
 		pkgsite.WithHTTPClient(&http.Client{Timeout: timeout}),
 		pkgsite.WithUserAgent(fmt.Sprintf("%s/%s", serverName, version)),
+		pkgsite.WithRetry(retries, 0),
+		pkgsite.WithCache(cacheTTL, cacheMaxEntries),
 	)
 	if err != nil {
 		return err
