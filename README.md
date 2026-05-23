@@ -60,13 +60,29 @@ Endpoints that can return many results (`search`, `get_package_symbols`,
 includes a non-empty `nextPageToken`, pass it back as `token` to fetch the next
 page.
 
+## Prompts
+
+The server also exposes guided, multi-tool workflows as MCP prompts:
+
+| Prompt         | Arguments           | Description                                                    |
+|----------------|---------------------|----------------------------------------------------------------|
+| `audit_module` | `module`, `version` | Check a module for known vulnerabilities and whether it is up to date. |
+| `find_package` | `need`              | Search for packages that meet a need and recommend one.        |
+
 ## Flags
 
-| Flag       | Default              | Description                 |
-|------------|----------------------|-----------------------------|
-| `-server`  | `https://pkg.go.dev` | pkg.go.dev API server URL.  |
-| `-timeout` | `30s`                | HTTP request timeout.       |
-| `-version` |                      | Print the version and exit. |
+| Flag         | Default              | Description                                      |
+|--------------|----------------------|--------------------------------------------------|
+| `-server`    | `https://pkg.go.dev` | pkg.go.dev API server URL.                       |
+| `-timeout`   | `30s`                | HTTP request timeout.                            |
+| `-retries`   | `2`                  | Retry attempts for transient failures (429/5xx). |
+| `-cache-ttl` | `5m`                 | Response cache TTL; `0` disables caching.        |
+| `-version`   |                      | Print the version and exit.                      |
+
+Transient failures (network errors and HTTP 429/5xx) are retried with
+exponential backoff, honoring any `Retry-After` header. Successful responses are
+cached in memory for `-cache-ttl`, keyed by request URL, to avoid refetching
+during multi-step exploration.
 
 ## Development
 
