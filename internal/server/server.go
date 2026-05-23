@@ -46,6 +46,7 @@ func New(client *pkgsite.Client, name, version string) *mcp.Server {
 		&mcp.ServerOptions{Instructions: instructions},
 	)
 	s.registerTools(mcpServer)
+	s.registerPrompts(mcpServer)
 	return mcpServer
 }
 

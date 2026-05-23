@@ -224,6 +224,56 @@ func TestToolValidatesRequiredArgs(t *testing.T) {
 	}
 }
 
+func TestPromptsRegistered(t *testing.T) {
+	cs := connect(t, func(w http.ResponseWriter, r *http.Request) {})
+
+	res, err := cs.ListPrompts(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("ListPrompts: %v", err)
+	}
+	got := make(map[string]bool, len(res.Prompts))
+	for _, p := range res.Prompts {
+		got[p.Name] = true
+	}
+	for _, want := range []string{"audit_module", "find_package"} {
+		if !got[want] {
+			t.Errorf("prompt %q not registered", want)
+		}
+	}
+}
+
+func TestGetPromptRendersArguments(t *testing.T) {
+	cs := connect(t, func(w http.ResponseWriter, r *http.Request) {})
+
+	res, err := cs.GetPrompt(context.Background(), &mcp.GetPromptParams{
+		Name:      "audit_module",
+		Arguments: map[string]string{"module": "github.com/google/uuid", "version": "v1.6.0"},
+	})
+	if err != nil {
+		t.Fatalf("GetPrompt: %v", err)
+	}
+	if len(res.Messages) == 0 {
+		t.Fatal("prompt returned no messages")
+	}
+	tc, ok := res.Messages[0].Content.(*mcp.TextContent)
+	if !ok {
+		t.Fatalf("message content type = %T, want *mcp.TextContent", res.Messages[0].Content)
+	}
+	for _, want := range []string{"github.com/google/uuid@v1.6.0", "get_vulnerabilities"} {
+		if !strings.Contains(tc.Text, want) {
+			t.Errorf("prompt text missing %q:\n%s", want, tc.Text)
+		}
+	}
+}
+
+func TestGetPromptRequiresArgument(t *testing.T) {
+	cs := connect(t, func(w http.ResponseWriter, r *http.Request) {})
+
+	if _, err := cs.GetPrompt(context.Background(), &mcp.GetPromptParams{Name: "audit_module"}); err == nil {
+		t.Fatal("expected error for missing required argument")
+	}
+}
+
 func contentText(res *mcp.CallToolResult) string {
 	var b strings.Builder
 	for _, c := range res.Content {
