@@ -310,7 +310,7 @@ func TestGetPromptAuditProjectRendersPath(t *testing.T) {
 	if !ok {
 		t.Fatalf("message content type = %T, want *mcp.TextContent", res.Messages[0].Content)
 	}
-	for _, want := range []string{"./myproj", "get_vulnerabilities", "go.mod"} {
+	for _, want := range []string{"./myproj", "get_vulnerabilities", "get_module", "go.mod", "unmaintained", "Unused"} {
 		if !strings.Contains(tc.Text, want) {
 			t.Errorf("prompt text missing %q:\n%s", want, tc.Text)
 		}
