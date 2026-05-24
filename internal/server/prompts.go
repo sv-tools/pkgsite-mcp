@@ -40,7 +40,7 @@ func (s *Server) registerPrompts(m *mcp.Server) {
 	m.AddPrompt(&mcp.Prompt{
 		Name:        "audit_project",
 		Title:       "Audit a Go project",
-		Description: "Scan a Go project and all of its dependencies for known vulnerabilities.",
+		Description: "Audit a Go project's dependencies for vulnerabilities, unmaintained modules, and unused requirements.",
 		Arguments: []*mcp.PromptArgument{
 			{Name: "path", Description: "path to the project directory; defaults to the current directory"},
 		},
