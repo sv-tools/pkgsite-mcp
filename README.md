@@ -1,5 +1,7 @@
 # pkgsite-mcp
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/sv-tools/pkgsite-mcp.svg)](https://pkg.go.dev/github.com/sv-tools/pkgsite-mcp)
+
 An [MCP](https://modelcontextprotocol.io) server that exposes the
 [pkg.go.dev](https://pkg.go.dev) API as tools, so an LLM can search for Go
 packages and inspect modules, packages, symbols, importers, and
