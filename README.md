@@ -78,6 +78,13 @@ The server also exposes guided, multi-tool workflows as MCP prompts:
 | `audit_project` | `path`              | Audit a Go project's dependencies for vulnerabilities, unmaintained modules, and unused requirements. |
 | `find_package`  | `need`              | Search for packages that meet a need and recommend one.                                               |
 
+### Agent skills (Codex and other non–Claude-Code agents)
+
+MCP prompts are surfaced only by Claude Code. For agents that consume filesystem
+[agent skills](https://agentskills.io) instead — such as OpenAI Codex — the same
+workflows are mirrored as `SKILL.md` files under [`skills/`](skills); see
+[`skills/README.md`](skills/README.md) for install and usage.
+
 ## Flags
 
 | Flag         | Default              | Description                                      |
