@@ -235,7 +235,7 @@ func TestPromptsRegistered(t *testing.T) {
 	for _, p := range res.Prompts {
 		got[p.Name] = true
 	}
-	for _, want := range []string{"audit_module", "find_package"} {
+	for _, want := range []string{"audit_module", "audit_project", "find_package"} {
 		if !got[want] {
 			t.Errorf("prompt %q not registered", want)
 		}
@@ -292,6 +292,41 @@ func TestGetPromptFindPackageRendersNeed(t *testing.T) {
 		if !strings.Contains(tc.Text, want) {
 			t.Errorf("prompt text missing %q:\n%s", want, tc.Text)
 		}
+	}
+}
+
+func TestGetPromptAuditProjectRendersPath(t *testing.T) {
+	cs := connect(t, func(w http.ResponseWriter, r *http.Request) {})
+
+	// With a path: the prompt should mention it and instruct a vuln scan.
+	res, err := cs.GetPrompt(context.Background(), &mcp.GetPromptParams{
+		Name:      "audit_project",
+		Arguments: map[string]string{"path": "./myproj"},
+	})
+	if err != nil {
+		t.Fatalf("GetPrompt: %v", err)
+	}
+	tc, ok := res.Messages[0].Content.(*mcp.TextContent)
+	if !ok {
+		t.Fatalf("message content type = %T, want *mcp.TextContent", res.Messages[0].Content)
+	}
+	for _, want := range []string{"./myproj", "get_vulnerabilities", "go.mod"} {
+		if !strings.Contains(tc.Text, want) {
+			t.Errorf("prompt text missing %q:\n%s", want, tc.Text)
+		}
+	}
+
+	// Without a path: it falls back to the current directory.
+	res, err = cs.GetPrompt(context.Background(), &mcp.GetPromptParams{Name: "audit_project"})
+	if err != nil {
+		t.Fatalf("GetPrompt (no path): %v", err)
+	}
+	tc, ok = res.Messages[0].Content.(*mcp.TextContent)
+	if !ok {
+		t.Fatalf("message content type = %T, want *mcp.TextContent", res.Messages[0].Content)
+	}
+	if !strings.Contains(tc.Text, "current directory") {
+		t.Errorf("prompt text missing current-directory fallback:\n%s", tc.Text)
 	}
 }
 
