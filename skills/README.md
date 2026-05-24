@@ -16,11 +16,10 @@ filesystem rather than delivered over the MCP protocol.
 
 These skills call this server's MCP **tools**, so register `pkgsite-mcp` with your agent first.
 
-- **Codex** (`~/.codex/config.toml`):
+- **Codex:**
 
-  ```toml
-  [mcp_servers.pkgsite]
-  command = "pkgsite-mcp"
+  ```sh
+  codex mcp add pkgsite -- pkgsite-mcp
   ```
 
 - **Claude Code:**
