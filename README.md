@@ -26,6 +26,12 @@ This installs the `pkgsite-mcp` binary into `$(go env GOPATH)/bin`.
 claude mcp add pkgsite --scope=user -- pkgsite-mcp
 ```
 
+## Use with Codex
+
+```sh
+codex mcp add pkgsite -- pkgsite-mcp
+```
+
 ## Use with Claude Desktop / other MCP clients
 
 Add the server to your client's MCP config (for Claude Desktop,
