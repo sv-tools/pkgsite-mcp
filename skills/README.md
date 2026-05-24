@@ -30,10 +30,20 @@ These skills call this server's MCP **tools**, so register `pkgsite-mcp` with yo
 
 ## Install
 
-Copy a skill directory into a skills location your agent scans:
+Use the bundled installer to copy the skills into a directory your agent scans
+(default `.agents/skills`):
+
+```sh
+pkgsite-mcp install-skills ~/.agents/skills   # omit the path for ./.agents/skills
+```
+
+It writes each skill as `<name>/SKILL.md` and skips files that already exist (pass
+`-force` to overwrite). Skill locations agents scan:
 
 - **Codex:** `.agents/skills/` (per repo) or `$HOME/.agents/skills/` (personal).
 - **Claude:** your configured skills directory.
+
+Or copy a skill directory yourself:
 
 ```sh
 cp -r skills/audit-go-project ~/.agents/skills/

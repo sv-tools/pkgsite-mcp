@@ -82,8 +82,9 @@ The server also exposes guided, multi-tool workflows as MCP prompts:
 
 MCP prompts are surfaced only by Claude Code. For agents that consume filesystem
 [agent skills](https://agentskills.io) instead — such as OpenAI Codex — the same
-workflows are mirrored as `SKILL.md` files under [`skills/`](skills); see
-[`skills/README.md`](skills/README.md) for install and usage.
+workflows are mirrored as `SKILL.md` files under [`skills/`](skills). Install them
+into your agent's skills folder with `pkgsite-mcp install-skills <dir>` (the binary
+bundles them); see [`skills/README.md`](skills/README.md) for details.
 
 ## Flags
 
