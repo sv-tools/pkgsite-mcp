@@ -64,10 +64,10 @@ page.
 
 The server also exposes guided, multi-tool workflows as MCP prompts:
 
-| Prompt         | Arguments           | Description                                                    |
-|----------------|---------------------|----------------------------------------------------------------|
+| Prompt         | Arguments           | Description                                                            |
+|----------------|---------------------|------------------------------------------------------------------------|
 | `audit_module` | `module`, `version` | Check a module for known vulnerabilities and whether it is up to date. |
-| `find_package` | `need`              | Search for packages that meet a need and recommend one.        |
+| `find_package` | `need`              | Search for packages that meet a need and recommend one.                |
 
 ## Flags
 
@@ -97,6 +97,9 @@ Layout:
 - `internal/pkgsite` — a small, dependency-free client for the pkg.go.dev
   v1beta API.
 - `internal/server` — registers each API endpoint as an MCP tool.
+- `internal/server/docs` — embedded Markdown for the tool and prompt
+  descriptions and the server instructions, so the prose can be edited without
+  touching Go.
 - `main.go` — CLI entrypoint; runs the server over stdio.
 
 ## License
