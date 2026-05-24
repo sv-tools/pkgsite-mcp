@@ -1,5 +1,7 @@
 # pkgsite-mcp
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/sv-tools/pkgsite-mcp.svg)](https://pkg.go.dev/github.com/sv-tools/pkgsite-mcp)
+
 An [MCP](https://modelcontextprotocol.io) server that exposes the
 [pkg.go.dev](https://pkg.go.dev) API as tools, so an LLM can search for Go
 packages and inspect modules, packages, symbols, importers, and
@@ -21,7 +23,13 @@ This installs the `pkgsite-mcp` binary into `$(go env GOPATH)/bin`.
 ## Use with Claude Code
 
 ```sh
-claude mcp add pkgsite -- pkgsite-mcp
+claude mcp add pkgsite --scope=user -- pkgsite-mcp
+```
+
+## Use with Codex
+
+```sh
+codex mcp add pkgsite -- pkgsite-mcp
 ```
 
 ## Use with Claude Desktop / other MCP clients
