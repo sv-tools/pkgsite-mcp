@@ -38,6 +38,15 @@ func (s *Server) registerPrompts(m *mcp.Server) {
 	}, auditModulePrompt)
 
 	m.AddPrompt(&mcp.Prompt{
+		Name:        "audit_project",
+		Title:       "Audit a Go project",
+		Description: "Scan a Go project and all of its dependencies for known vulnerabilities.",
+		Arguments: []*mcp.PromptArgument{
+			{Name: "path", Description: "path to the project directory; defaults to the current directory"},
+		},
+	}, auditProjectPrompt)
+
+	m.AddPrompt(&mcp.Prompt{
 		Name:        "find_package",
 		Title:       "Find a Go package",
 		Description: "Search for packages that meet a need and recommend one.",
@@ -55,6 +64,12 @@ func auditModulePrompt(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetPr
 	return renderPrompt("audit_module.md", map[string]string{
 		"Module":  module,
 		"Version": req.Params.Arguments["version"],
+	})
+}
+
+func auditProjectPrompt(_ context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
+	return renderPrompt("audit_project.md", map[string]string{
+		"Path": req.Params.Arguments["path"],
 	})
 }
 

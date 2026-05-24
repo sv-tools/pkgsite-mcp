@@ -64,10 +64,11 @@ page.
 
 The server also exposes guided, multi-tool workflows as MCP prompts:
 
-| Prompt         | Arguments           | Description                                                            |
-|----------------|---------------------|------------------------------------------------------------------------|
-| `audit_module` | `module`, `version` | Check a module for known vulnerabilities and whether it is up to date. |
-| `find_package` | `need`              | Search for packages that meet a need and recommend one.                |
+| Prompt          | Arguments           | Description                                                              |
+|-----------------|---------------------|--------------------------------------------------------------------------|
+| `audit_module`  | `module`, `version` | Check a module for known vulnerabilities and whether it is up to date.   |
+| `audit_project` | `path`              | Scan a Go project and all of its dependencies for known vulnerabilities. |
+| `find_package`  | `need`              | Search for packages that meet a need and recommend one.                  |
 
 ## Flags
 
