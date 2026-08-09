@@ -3,8 +3,10 @@
 package server
 
 import (
+	"context"
 	"embed"
 	"strings"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -37,17 +39,57 @@ type Server struct {
 	client *pkgsite.Client
 }
 
+// Display metadata advertised alongside the server name and version, so hosts
+// have something friendlier than the binary name to show a user.
+const (
+	title       = "Go Package Index (pkg.go.dev)"
+	description = "Search pkg.go.dev and inspect Go modules, packages, symbols, importers, and vulnerabilities."
+	websiteURL  = "https://github.com/sv-tools/pkgsite-mcp"
+)
+
 // New returns an MCP server that exposes the pkg.go.dev API as tools, backed by
 // the given client.
 func New(client *pkgsite.Client, name, version string) *mcp.Server {
 	s := &Server{client: client}
 	mcpServer := mcp.NewServer(
-		&mcp.Implementation{Name: name, Version: version},
+		&mcp.Implementation{
+			Name:        name,
+			Title:       title,
+			Description: description,
+			Version:     version,
+			WebsiteURL:  websiteURL,
+		},
 		&mcp.ServerOptions{Instructions: instructions},
 	)
+	mcpServer.AddReceivingMiddleware(cacheableLists)
 	s.registerTools(mcpServer)
 	s.registerPrompts(mcpServer)
 	return mcpServer
+}
+
+// listTTL is the freshness hint advertised on tools/list and prompts/list
+// results (SEP-2549, added in go-sdk v1.7.0). Both sets are registered once in
+// New and never change while the process runs, so a client can safely reuse a
+// listing instead of re-fetching it; the SDK's default of zero would mark every
+// listing immediately stale. The hint is deliberately finite so that a client
+// holding a listing across a server upgrade picks up the new one before long.
+const listTTL = time.Hour
+
+// cacheableLists sets the SEP-2549 ttlMs hint on the list results that the SDK
+// leaves at zero. It is receiving middleware because these results answer
+// client-to-server requests; sending middleware only sees requests the server
+// itself initiates.
+func cacheableLists(next mcp.MethodHandler) mcp.MethodHandler {
+	return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
+		res, err := next(ctx, method, req)
+		switch r := res.(type) {
+		case *mcp.ListToolsResult:
+			r.TTLMs = int(listTTL / time.Millisecond)
+		case *mcp.ListPromptsResult:
+			r.TTLMs = int(listTTL / time.Millisecond)
+		}
+		return res, err
+	}
 }
 
 // ptr returns a pointer to v, for the SDK's pointer-valued hint fields.
