@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -99,6 +100,49 @@ func TestServerAdvertisesInstructions(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Errorf("instructions missing %q", want)
 		}
+	}
+}
+
+func TestServerAdvertisesDisplayMetadata(t *testing.T) {
+	cs := connect(t, func(w http.ResponseWriter, r *http.Request) {})
+
+	info := cs.InitializeResult().ServerInfo
+	if info.Title == "" {
+		t.Error("server advertised no title")
+	}
+	if !strings.Contains(info.Description, "pkg.go.dev") {
+		t.Errorf("description = %q, want it to mention pkg.go.dev", info.Description)
+	}
+	if want := "https://github.com/sv-tools/pkgsite-mcp"; info.WebsiteURL != want {
+		t.Errorf("websiteURL = %q, want %q", info.WebsiteURL, want)
+	}
+}
+
+// Tools and prompts never change while the process runs, so the listings carry
+// a non-zero SEP-2549 freshness hint rather than the SDK's "immediately stale"
+// default.
+func TestListResultsAreCacheable(t *testing.T) {
+	cs := connect(t, func(w http.ResponseWriter, r *http.Request) {})
+	ctx := context.Background()
+	wantTTL := int(listTTL / time.Millisecond)
+
+	tools, err := cs.ListTools(ctx, nil)
+	if err != nil {
+		t.Fatalf("ListTools: %v", err)
+	}
+	if tools.TTLMs != wantTTL {
+		t.Errorf("tools/list ttlMs = %d, want %d", tools.TTLMs, wantTTL)
+	}
+	if want := "public"; tools.CacheScope != want {
+		t.Errorf("tools/list cacheScope = %q, want %q", tools.CacheScope, want)
+	}
+
+	prompts, err := cs.ListPrompts(ctx, nil)
+	if err != nil {
+		t.Fatalf("ListPrompts: %v", err)
+	}
+	if prompts.TTLMs != wantTTL {
+		t.Errorf("prompts/list ttlMs = %d, want %d", prompts.TTLMs, wantTTL)
 	}
 }
 
