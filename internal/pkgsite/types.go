@@ -87,14 +87,16 @@ type ModuleVersion struct {
 	// LatestVersion is the module's latest unretracted version, repeated on
 	// every item so a single call shows whether a version is current.
 	LatestVersion string `json:"latestVersion"`
-	// Deprecated reports whether the module was marked deprecated in go.mod at
-	// this version; DeprecationReason is the text of that "// Deprecated:"
-	// comment, when the author gave one.
+	// Deprecated reports whether the module is currently deprecated, as declared
+	// by the latest version's go.mod; DeprecationReason is the text of that
+	// "// Deprecated:" comment, when the author gave one. This is a module-wide
+	// status repeated on every item, not per-version history.
 	Deprecated        bool   `json:"deprecated"`
 	DeprecationReason string `json:"deprecationReason,omitempty"`
-	// Retracted reports whether this version is retracted by a later version's
-	// go.mod; RetractionReason is the rationale, when the author gave one. A
-	// retracted version should not be selected.
+	// Retracted reports whether this specific version is named by a retract
+	// directive in the latest version's go.mod; RetractionReason is the
+	// rationale, when the author gave one. A retracted version should not be
+	// selected.
 	Retracted        bool   `json:"retracted"`
 	RetractionReason string `json:"retractionReason,omitempty"`
 }
