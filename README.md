@@ -111,8 +111,7 @@ go vet ./...
 
 Layout:
 
-- `internal/pkgsite` — a small, dependency-free client for the pkg.go.dev
-  v1 API.
+- `internal/pkgsite` — a small, dependency-free client for the pkg.go.dev v1 API.
 - `internal/server` — registers each API endpoint as an MCP tool.
 - `internal/server/docs` — embedded Markdown for the tool and prompt
   descriptions and the server instructions, so the prose can be edited without
