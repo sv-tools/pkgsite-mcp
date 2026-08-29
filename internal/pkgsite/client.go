@@ -29,7 +29,7 @@ const (
 	maxRetryDelay = 5 * time.Second
 )
 
-// Client fetches data from the pkg.go.dev v1beta API.
+// Client fetches data from the pkg.go.dev v1 API.
 type Client struct {
 	server     *url.URL
 	httpClient *http.Client
@@ -334,7 +334,7 @@ func (c *Client) GetPackage(ctx context.Context, path, version string, opts Pack
 		q.Set("goarch", opts.GOARCH)
 	}
 	var resp Package
-	if err := c.get(ctx, c.endpoint(q, "v1beta", "package", path), &resp); err != nil {
+	if err := c.get(ctx, c.endpoint(q, "v1", "package", path), &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
@@ -365,7 +365,7 @@ func (c *Client) GetSymbols(ctx context.Context, path, version string, opts Symb
 	}
 	setPagination(q, opts.Limit, opts.Token)
 	var resp PackageSymbols
-	if err := c.get(ctx, c.endpoint(q, "v1beta", "symbols", path), &resp); err != nil {
+	if err := c.get(ctx, c.endpoint(q, "v1", "symbols", path), &resp); err != nil {
 		return nil, err
 	}
 	return &resp.Symbols, nil
@@ -389,7 +389,7 @@ func (c *Client) GetImportedBy(ctx context.Context, path, version string, opts I
 	}
 	setPagination(q, opts.Limit, opts.Token)
 	var resp PackageImportedBy
-	if err := c.get(ctx, c.endpoint(q, "v1beta", "imported-by", path), &resp); err != nil {
+	if err := c.get(ctx, c.endpoint(q, "v1", "imported-by", path), &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
@@ -415,18 +415,19 @@ func (c *Client) GetModule(ctx context.Context, path, version string, opts Modul
 		q.Set("licenses", "true")
 	}
 	var resp Module
-	if err := c.get(ctx, c.endpoint(q, "v1beta", "module", path), &resp); err != nil {
+	if err := c.get(ctx, c.endpoint(q, "v1", "module", path), &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
-// GetVersions fetches the list of versions for the given module path.
-func (c *Client) GetVersions(ctx context.Context, path string, opts PaginationOptions) (*PaginatedResponse[VersionResponse], error) {
+// GetVersions fetches the list of versions for the given module path, newest
+// first, each with its commit time and deprecation and retraction status.
+func (c *Client) GetVersions(ctx context.Context, path string, opts PaginationOptions) (*PaginatedResponse[ModuleVersion], error) {
 	q := make(url.Values)
 	setPagination(q, opts.Limit, opts.Token)
-	var resp PaginatedResponse[VersionResponse]
-	if err := c.get(ctx, c.endpoint(q, "v1beta", "versions", path), &resp); err != nil {
+	var resp PaginatedResponse[ModuleVersion]
+	if err := c.get(ctx, c.endpoint(q, "v1", "versions", path), &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
@@ -440,7 +441,7 @@ func (c *Client) GetVulns(ctx context.Context, path, version string, opts Pagina
 	}
 	setPagination(q, opts.Limit, opts.Token)
 	var resp PaginatedResponse[Vulnerability]
-	if err := c.get(ctx, c.endpoint(q, "v1beta", "vulns", path), &resp); err != nil {
+	if err := c.get(ctx, c.endpoint(q, "v1", "vulns", path), &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
@@ -455,7 +456,7 @@ func (c *Client) GetPackages(ctx context.Context, modulePath, version string, op
 	}
 	setPagination(q, opts.Limit, opts.Token)
 	var resp PackagesResponse
-	if err := c.get(ctx, c.endpoint(q, "v1beta", "packages", modulePath), &resp); err != nil {
+	if err := c.get(ctx, c.endpoint(q, "v1", "packages", modulePath), &resp); err != nil {
 		return nil, err
 	}
 	items := make([]ModulePackageResponse, 0, len(resp.Packages.Items))
@@ -485,7 +486,7 @@ func (c *Client) Search(ctx context.Context, query string, opts SearchOptions) (
 	}
 	setPagination(q, opts.Limit, opts.Token)
 	var resp PaginatedResponse[SearchResult]
-	if err := c.get(ctx, c.endpoint(q, "v1beta", "search"), &resp); err != nil {
+	if err := c.get(ctx, c.endpoint(q, "v1", "search"), &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil

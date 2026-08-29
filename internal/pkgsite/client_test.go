@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 )
 
 // newTestClient returns a Client pointed at a test server that records the last
@@ -61,7 +62,7 @@ func TestGetPackageRequestAndDecode(t *testing.T) {
 		t.Fatalf("GetPackage: %v", err)
 	}
 
-	if got, want := last.URL.Path, "/v1beta/package/github.com/google/uuid"; got != want {
+	if got, want := last.URL.Path, "/v1/package/github.com/google/uuid"; got != want {
 		t.Errorf("path = %q, want %q", got, want)
 	}
 	wantQuery := url.Values{
@@ -100,7 +101,7 @@ func TestSearchSetsQueryParam(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Search: %v", err)
 	}
-	if got, want := last.URL.Path, "/v1beta/search"; got != want {
+	if got, want := last.URL.Path, "/v1/search"; got != want {
 		t.Errorf("path = %q, want %q", got, want)
 	}
 	q := last.URL.Query()
@@ -173,11 +174,53 @@ func TestGetSymbolsUnwraps(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetSymbols: %v", err)
 	}
-	if got, want := last.URL.Path, "/v1beta/symbols/p"; got != want {
+	if got, want := last.URL.Path, "/v1/symbols/p"; got != want {
 		t.Errorf("path = %q, want %q", got, want)
 	}
 	if len(res.Items) != 1 || res.Items[0].Name != "New" {
 		t.Errorf("symbols = %+v", res.Items)
+	}
+}
+
+func TestGetVersionsDecodesRetractionAndDeprecation(t *testing.T) {
+	const body = `{"items":[
+		{"modulePath":"m","version":"v1.1.0","commitTime":"2024-01-23T18:54:04Z",
+		 "isRedistributable":true,"hasGoMod":true,"latestVersion":"v1.1.0",
+		 "deprecated":false,"deprecationReason":"","retracted":false,"retractionReason":""},
+		{"modulePath":"m","version":"v1.0.0","commitTime":"2023-12-12T17:21:37Z",
+		 "isRedistributable":true,"hasGoMod":true,"latestVersion":"v1.1.0",
+		 "deprecated":true,"deprecationReason":"use m/v2","retracted":true,"retractionReason":"broken release"}
+	],"total":2}`
+	c, last := newTestClient(t, http.StatusOK, body)
+
+	res, err := c.GetVersions(context.Background(), "m", PaginationOptions{Limit: 2})
+	if err != nil {
+		t.Fatalf("GetVersions: %v", err)
+	}
+	if got, want := last.URL.Path, "/v1/versions/m"; got != want {
+		t.Errorf("path = %q, want %q", got, want)
+	}
+	if len(res.Items) != 2 {
+		t.Fatalf("items = %d, want 2", len(res.Items))
+	}
+
+	latest := res.Items[0]
+	if latest.Version != "v1.1.0" || latest.LatestVersion != "v1.1.0" || !latest.HasGoMod {
+		t.Errorf("latest version not decoded: %+v", latest)
+	}
+	if got, want := latest.CommitTime.Format(time.RFC3339), "2024-01-23T18:54:04Z"; got != want {
+		t.Errorf("commitTime = %q, want %q", got, want)
+	}
+	if latest.Deprecated || latest.Retracted {
+		t.Errorf("latest wrongly flagged: %+v", latest)
+	}
+
+	old := res.Items[1]
+	if !old.Retracted || old.RetractionReason != "broken release" {
+		t.Errorf("retraction not decoded: %+v", old)
+	}
+	if !old.Deprecated || old.DeprecationReason != "use m/v2" {
+		t.Errorf("deprecation not decoded: %+v", old)
 	}
 }
 

@@ -128,7 +128,7 @@ type ListVersionsInput struct {
 	Token string `json:"token,omitempty" jsonschema:"pagination token: pass nextPageToken from a previous response to fetch the next page"`
 }
 
-func (s *Server) listVersions(ctx context.Context, _ *mcp.CallToolRequest, in ListVersionsInput) (*mcp.CallToolResult, pkgsite.PaginatedResponse[pkgsite.VersionResponse], error) {
+func (s *Server) listVersions(ctx context.Context, _ *mcp.CallToolRequest, in ListVersionsInput) (*mcp.CallToolResult, pkgsite.PaginatedResponse[pkgsite.ModuleVersion], error) {
 	res, err := s.client.GetVersions(ctx, in.Path, pkgsite.PaginationOptions{Limit: limitOr(in.Limit), Token: in.Token})
 	return result(res, err)
 }

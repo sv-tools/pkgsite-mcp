@@ -1,1 +1,1 @@
-List a module's available versions, newest first. Paginated.
+List a module's available versions, newest first, each with its commit time and whether it is deprecated or retracted (with the author's reason, when given). Every item repeats latestVersion, so one call tells you whether a version is current. Never recommend a retracted version; treat a deprecated module as a maintenance risk. Paginated.
