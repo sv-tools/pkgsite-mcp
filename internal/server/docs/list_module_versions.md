@@ -1,1 +1,1 @@
-List a module's available versions, newest first. Paginated.
+List a module's available versions, newest first, each with its commit time and whether that version is retracted (with the author's reason, when given). Every item also repeats two module-wide facts: latestVersion, so one call tells you whether a version is current, and deprecated, the status declared by the latest version's go.mod — it is not per-version history. Never recommend a retracted version; treat a deprecated module as a maintenance risk. Paginated.

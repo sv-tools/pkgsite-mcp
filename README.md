@@ -7,7 +7,7 @@ An [MCP](https://modelcontextprotocol.io) server that exposes the
 packages and inspect modules, packages, symbols, importers, and
 vulnerabilities — without downloading anything.
 
-It wraps the pkg.go.dev v1beta HTTP API (see
+It wraps the pkg.go.dev v1 HTTP API (see
 [the announcement](https://go.dev/blog/pkgsite-api)), the same API used by the
 `pkgsite-cli` reference client. The server speaks MCP over **stdio**, the
 transport used by Claude Code, Claude Desktop, and most IDE integrations.
@@ -58,7 +58,7 @@ Use the absolute path to the binary if it is not on your `PATH`.
 | `get_package_symbols`  | Exported symbols (functions, types, methods, vars, consts) of a package.                         |
 | `get_imported_by`      | Packages from other modules that import a given package (reverse deps; same-module excluded).    |
 | `get_module`           | Module details: version, commit time, repo URL, and optionally README and licenses.              |
-| `list_module_versions` | Available versions of a module.                                                                  |
+| `list_module_versions` | Available versions of a module, with commit times and deprecation/retraction status.             |
 | `list_module_packages` | Packages contained in a module at a version.                                                     |
 | `get_vulnerabilities`  | Known vulnerabilities (Go vuln database) for a module path and version.                          |
 
@@ -112,7 +112,7 @@ go vet ./...
 Layout:
 
 - `internal/pkgsite` — a small, dependency-free client for the pkg.go.dev
-  v1beta API.
+  v1 API.
 - `internal/server` — registers each API endpoint as an MCP tool.
 - `internal/server/docs` — embedded Markdown for the tool and prompt
   descriptions and the server instructions, so the prose can be edited without

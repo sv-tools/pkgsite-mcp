@@ -198,7 +198,7 @@ func TestPaginatedToolAppliesDefaultLimit(t *testing.T) {
 func TestSearchToolReturnsStructuredContent(t *testing.T) {
 	const body = `{"items":[{"packagePath":"github.com/google/uuid","synopsis":"UUIDs"}],"total":1}`
 	cs := connect(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/v1beta/search" {
+		if r.URL.Path != "/v1/search" {
 			t.Errorf("unexpected path %q", r.URL.Path)
 		}
 		if q := r.URL.Query().Get("q"); q != "uuid" {

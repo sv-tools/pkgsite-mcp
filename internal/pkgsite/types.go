@@ -1,4 +1,4 @@
-// Package pkgsite provides a small client for the pkg.go.dev v1beta HTTP API.
+// Package pkgsite provides a small client for the pkg.go.dev v1 HTTP API.
 //
 // The API is stateless and GET-only. See https://go.dev/blog/pkgsite-api for
 // background. This client mirrors the surface of the reference client that
@@ -30,7 +30,7 @@ type PackageInfo struct {
 	IsRedistributable bool `json:"isRedistributable"`
 }
 
-// Package is the response for /v1beta/package/{packagePath}.
+// Package is the response for /v1/package/{packagePath}.
 type Package struct {
 	ModulePath        string    `json:"modulePath"`
 	Version           string    `json:"version"`
@@ -44,7 +44,7 @@ type Package struct {
 	PackageInfo
 }
 
-// PackagesResponse is the response for /v1beta/packages/{modulePath}.
+// PackagesResponse is the response for /v1/packages/{modulePath}.
 type PackagesResponse struct {
 	ModulePath        string                         `json:"modulePath"`
 	Version           string                         `json:"version"`
@@ -66,19 +66,42 @@ type License struct {
 	Contents string   `json:"contents,omitempty"`
 }
 
-// PackageImportedBy is the response for /v1beta/imported-by/{packagePath}.
+// PackageImportedBy is the response for /v1/imported-by/{packagePath}.
 type PackageImportedBy struct {
 	ModulePath string                    `json:"modulePath"`
 	Version    string                    `json:"version"`
 	ImportedBy PaginatedResponse[string] `json:"importedBy"`
 }
 
-// VersionResponse is a single version from /v1beta/versions/{modulePath}.
-type VersionResponse struct {
-	Version string `json:"version"`
+// ModuleVersion is a single version from /v1/versions/{modulePath}.
+type ModuleVersion struct {
+	ModulePath string `json:"modulePath"`
+	Version    string `json:"version"`
+	// CommitTime is the time the version was created, as reported by the
+	// module proxy's .info endpoint.
+	CommitTime time.Time `json:"commitTime"`
+	// IsRedistributable reports whether the license allows distribution.
+	IsRedistributable bool `json:"isRedistributable"`
+	// HasGoMod reports whether the version has a go.mod file.
+	HasGoMod bool `json:"hasGoMod"`
+	// LatestVersion is the module's latest unretracted version, repeated on
+	// every item so a single call shows whether a version is current.
+	LatestVersion string `json:"latestVersion"`
+	// Deprecated reports whether the module is currently deprecated, as declared
+	// by the latest version's go.mod; DeprecationReason is the text of that
+	// "// Deprecated:" comment, when the author gave one. This is a module-wide
+	// status repeated on every item, not per-version history.
+	Deprecated        bool   `json:"deprecated"`
+	DeprecationReason string `json:"deprecationReason,omitempty"`
+	// Retracted reports whether this specific version is named by a retract
+	// directive in the latest version's go.mod; RetractionReason is the
+	// rationale, when the author gave one. A retracted version should not be
+	// selected.
+	Retracted        bool   `json:"retracted"`
+	RetractionReason string `json:"retractionReason,omitempty"`
 }
 
-// Module is the response for /v1beta/module/{modulePath}.
+// Module is the response for /v1/module/{modulePath}.
 type Module struct {
 	Path    string `json:"path"`
 	Version string `json:"version"`
@@ -109,14 +132,14 @@ type Symbol struct {
 	Parent   string `json:"parent,omitempty"`
 }
 
-// PackageSymbols is the response for /v1beta/symbols/{packagePath}.
+// PackageSymbols is the response for /v1/symbols/{packagePath}.
 type PackageSymbols struct {
 	ModulePath string                    `json:"modulePath"`
 	Version    string                    `json:"version"`
 	Symbols    PaginatedResponse[Symbol] `json:"symbols"`
 }
 
-// SearchResult is a single result from /v1beta/search.
+// SearchResult is a single result from /v1/search.
 type SearchResult struct {
 	PackagePath string `json:"packagePath"`
 	ModulePath  string `json:"modulePath"`
