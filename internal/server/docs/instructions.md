@@ -20,3 +20,6 @@ Key distinctions and tips:
   large, so request them only when needed.
 - `get_vulnerabilities` checks the Go vulnerability database; an empty result
   means no known vulnerabilities for that module version.
+- `list_module_versions` flags version health: `retracted` marks a version the
+  author withdrew — never select one — while `deprecated` is module-wide, taken
+  from the latest version's go.mod, not a per-version fact.
