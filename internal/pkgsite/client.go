@@ -303,6 +303,8 @@ type PackageOptions struct {
 	Licenses bool   // include license information
 	GOOS     string // target GOOS
 	GOARCH   string // target GOARCH
+
+	ImportedByCounts bool // include counts of importing packages and modules
 }
 
 // GetPackage fetches information about a package at the given path and version.
@@ -332,6 +334,9 @@ func (c *Client) GetPackage(ctx context.Context, path, version string, opts Pack
 	}
 	if opts.GOARCH != "" {
 		q.Set("goarch", opts.GOARCH)
+	}
+	if opts.ImportedByCounts {
+		q.Set("imported-by-counts", "true")
 	}
 	var resp Package
 	if err := c.get(ctx, c.endpoint(q, "v1", "package", path), &resp); err != nil {

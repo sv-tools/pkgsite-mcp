@@ -1,1 +1,1 @@
-Search pkg.go.dev for Go packages by name or keywords (e.g. "yaml parser"). Returns matching import paths, their module, and a synopsis. Use this to discover a package when you don't know its import path. Paginated.
+Search pkg.go.dev for Go packages by name or keywords (e.g. "yaml parser"). Returns matching import paths, their module, a synopsis, and importedByCounts — how many packages and modules from other modules import each result (-1 means not known yet), a quick gauge of adoption. Use this to discover a package when you don't know its import path. Paginated.

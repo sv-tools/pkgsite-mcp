@@ -1,1 +1,1 @@
-List packages from other modules that import this package (reverse dependencies; same-module importers are excluded). Useful to gauge popularity or find real-world usage. Paginated.
+List packages from other modules that import this package (reverse dependencies; same-module importers are excluded). Useful to find real-world usage; for just the number of importers, the importedByCounts from search or get_package is cheaper. A total of -1 means the number of importers is not known yet. Paginated.
