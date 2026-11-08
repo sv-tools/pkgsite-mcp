@@ -59,9 +59,11 @@ func New(client *pkgsite.Client, name, version string) *mcp.Server {
 			Version:     version,
 			WebsiteURL:  websiteURL,
 		},
-		&mcp.ServerOptions{Instructions: instructions},
+		&mcp.ServerOptions{
+			Instructions: instructions,
+			SetCacheable: cacheableLists,
+		},
 	)
-	mcpServer.AddReceivingMiddleware(cacheableLists)
 	s.registerTools(mcpServer)
 	s.registerPrompts(mcpServer)
 	return mcpServer
@@ -75,20 +77,15 @@ func New(client *pkgsite.Client, name, version string) *mcp.Server {
 // holding a listing across a server upgrade picks up the new one before long.
 const listTTL = time.Hour
 
-// cacheableLists sets the SEP-2549 ttlMs hint on the list results that the SDK
-// leaves at zero. It is receiving middleware because these results answer
-// client-to-server requests; sending middleware only sees requests the server
-// itself initiates.
-func cacheableLists(next mcp.MethodHandler) mcp.MethodHandler {
-	return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
-		res, err := next(ctx, method, req)
-		switch r := res.(type) {
-		case *mcp.ListToolsResult:
-			r.TTLMs = int(listTTL / time.Millisecond)
-		case *mcp.ListPromptsResult:
-			r.TTLMs = int(listTTL / time.Millisecond)
-		}
-		return res, err
+// cacheableLists is the ServerOptions.SetCacheable hook (go-sdk v1.8.0). It sets
+// the SEP-2549 ttlMs hint on the tools/list and prompts/list results, which the
+// SDK otherwise leaves at zero, and leaves every other cacheable result alone.
+// The SDK calls it with the server lock held, so it must not call back into the
+// server.
+func cacheableLists(_ context.Context, req mcp.Request, c *mcp.Cacheable) {
+	switch req.(type) {
+	case *mcp.ListToolsRequest, *mcp.ListPromptsRequest:
+		c.TTLMs = int(listTTL / time.Millisecond)
 	}
 }
 
