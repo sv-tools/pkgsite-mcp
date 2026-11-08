@@ -68,6 +68,12 @@ Endpoints that can return many results (`search`, `get_package_symbols`,
 includes a non-empty `nextPageToken`, pass it back as `token` to fetch the next
 page.
 
+All of them except `get_vulnerabilities` also accept a `filter`: a boolean Go
+expression evaluated by pkg.go.dev against each result, such as
+`kind == "Type"` for symbols or `hasPrefix(version, "v2.") && !retracted` for
+versions. See the [pkg.go.dev API docs](https://pkg.go.dev/v1/api#filters) for
+the syntax.
+
 ## Prompts
 
 The server also exposes guided, multi-tool workflows as MCP prompts:

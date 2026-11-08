@@ -15,6 +15,14 @@ Key distinctions and tips:
 - Paginated tools return a `nextPageToken`; pass it back as `token` to fetch the
   next page. Results are capped by `limit` (a server-side default applies when
   it is omitted) — raise it only when you need more.
+- `search`, `get_package_symbols`, `get_imported_by`, `list_module_versions`,
+  and `list_module_packages` accept a `filter`: a boolean Go expression over each
+  item's JSON fields (nested fields via `.`), evaluated by pkg.go.dev. It
+  supports `==`, `!=`, `<`, `>`, `&&`, `||`, `!`, integer arithmetic, and the
+  functions `contains`, `hasPrefix`, `hasSuffix`, and `matches` (regexp), e.g.
+  `kind == "Type"`. Prefer it over paging through everything and filtering
+  yourself. On `get_imported_by` and `list_module_versions` it applies per page,
+  so an empty page with a `nextPageToken` does not mean there are no more matches.
 - When requesting documentation, prefer `doc=md` or `doc=text`; `doc=html` is far
   more verbose. README contents, full license texts, and import lists can be
   large, so request them only when needed.
