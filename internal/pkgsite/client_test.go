@@ -115,6 +115,26 @@ func TestSearchSetsQueryParam(t *testing.T) {
 	}
 }
 
+func TestListOptionsSetFilter(t *testing.T) {
+	c, last := newTestClient(t, http.StatusOK, `{"items":[],"total":-1}`)
+
+	const filter = `hasPrefix(version, "v2.") && !retracted`
+	if _, err := c.GetVersions(context.Background(), "example.com/m", PaginationOptions{Filter: filter}); err != nil {
+		t.Fatalf("GetVersions: %v", err)
+	}
+	if got := last.URL.Query().Get("filter"); got != filter {
+		t.Errorf("query[filter] = %q, want %q", got, filter)
+	}
+
+	// An empty filter is omitted rather than sent as filter=.
+	if _, err := c.GetVersions(context.Background(), "example.com/m", PaginationOptions{}); err != nil {
+		t.Fatalf("GetVersions: %v", err)
+	}
+	if last.URL.Query().Has("filter") {
+		t.Errorf("empty filter was sent: %q", last.URL.RawQuery)
+	}
+}
+
 func TestGetPackagesFlattens(t *testing.T) {
 	const body = `{
 		"modulePath": "m",

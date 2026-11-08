@@ -31,12 +31,13 @@ type SearchInput struct {
 	Symbol string `json:"symbol,omitempty" jsonschema:"restrict results to packages that export this symbol, e.g. Marshal"`
 	Limit  int    `json:"limit,omitempty" jsonschema:"maximum results to return; omit for a server-side default"`
 	Token  string `json:"token,omitempty" jsonschema:"pagination token: pass nextPageToken from a previous response to fetch the next page"`
+	Filter string `json:"filter,omitempty" jsonschema:"server-side filter: a boolean Go expression over packagePath, modulePath, version, synopsis, importedByCounts.packages, importedByCounts.modules, e.g. importedByCounts.packages > 1000 && !contains(modulePath, \"/internal/\")"`
 }
 
 func (s *Server) search(ctx context.Context, _ *mcp.CallToolRequest, in SearchInput) (*mcp.CallToolResult, pkgsite.PaginatedResponse[pkgsite.SearchResult], error) {
 	res, err := s.client.Search(ctx, in.Query, pkgsite.SearchOptions{
 		Symbol:            in.Symbol,
-		PaginationOptions: pkgsite.PaginationOptions{Limit: limitOr(in.Limit), Token: in.Token},
+		PaginationOptions: pkgsite.PaginationOptions{Limit: limitOr(in.Limit), Token: in.Token, Filter: in.Filter},
 	})
 	return result(res, err)
 }
@@ -76,6 +77,7 @@ type GetSymbolsInput struct {
 	GOARCH  string `json:"goarch,omitempty" jsonschema:"target GOARCH, e.g. amd64"`
 	Limit   int    `json:"limit,omitempty" jsonschema:"maximum symbols to return; omit for a server-side default"`
 	Token   string `json:"token,omitempty" jsonschema:"pagination token: pass nextPageToken from a previous response to fetch the next page"`
+	Filter  string `json:"filter,omitempty" jsonschema:"server-side filter: a boolean Go expression over name, kind (Constant, Variable, Function, Type, Field, Method), synopsis, parent, e.g. kind == \"Type\""`
 }
 
 func (s *Server) getSymbols(ctx context.Context, _ *mcp.CallToolRequest, in GetSymbolsInput) (*mcp.CallToolResult, pkgsite.PaginatedResponse[pkgsite.Symbol], error) {
@@ -83,7 +85,7 @@ func (s *Server) getSymbols(ctx context.Context, _ *mcp.CallToolRequest, in GetS
 		Module:            in.Module,
 		GOOS:              in.GOOS,
 		GOARCH:            in.GOARCH,
-		PaginationOptions: pkgsite.PaginationOptions{Limit: limitOr(in.Limit), Token: in.Token},
+		PaginationOptions: pkgsite.PaginationOptions{Limit: limitOr(in.Limit), Token: in.Token, Filter: in.Filter},
 	})
 	return result(res, err)
 }
@@ -95,12 +97,13 @@ type GetImportedByInput struct {
 	Module  string `json:"module,omitempty" jsonschema:"module path to disambiguate an ambiguous package path; set to one of the candidates from a failed call"`
 	Limit   int    `json:"limit,omitempty" jsonschema:"maximum importers to return; omit for a server-side default"`
 	Token   string `json:"token,omitempty" jsonschema:"pagination token: pass nextPageToken from a previous response to fetch the next page"`
+	Filter  string `json:"filter,omitempty" jsonschema:"server-side filter: a boolean Go expression over path (the importer's import path), e.g. hasPrefix(path, \"k8s.io/\"). Applied per page: a page may be empty while nextPageToken is still set"`
 }
 
 func (s *Server) getImportedBy(ctx context.Context, _ *mcp.CallToolRequest, in GetImportedByInput) (*mcp.CallToolResult, pkgsite.PackageImportedBy, error) {
 	res, err := s.client.GetImportedBy(ctx, in.Path, in.Version, pkgsite.ImportedByOptions{
 		Module:            in.Module,
-		PaginationOptions: pkgsite.PaginationOptions{Limit: limitOr(in.Limit), Token: in.Token},
+		PaginationOptions: pkgsite.PaginationOptions{Limit: limitOr(in.Limit), Token: in.Token, Filter: in.Filter},
 	})
 	return result(res, err)
 }
@@ -123,13 +126,14 @@ func (s *Server) getModule(ctx context.Context, _ *mcp.CallToolRequest, in GetMo
 
 // ListVersionsInput is the input for the list_module_versions tool.
 type ListVersionsInput struct {
-	Path  string `json:"path" jsonschema:"module path, e.g. github.com/google/uuid (the module, not a package within it)"`
-	Limit int    `json:"limit,omitempty" jsonschema:"maximum versions to return; omit for a server-side default"`
-	Token string `json:"token,omitempty" jsonschema:"pagination token: pass nextPageToken from a previous response to fetch the next page"`
+	Path   string `json:"path" jsonschema:"module path, e.g. github.com/google/uuid (the module, not a package within it)"`
+	Limit  int    `json:"limit,omitempty" jsonschema:"maximum versions to return; omit for a server-side default"`
+	Token  string `json:"token,omitempty" jsonschema:"pagination token: pass nextPageToken from a previous response to fetch the next page"`
+	Filter string `json:"filter,omitempty" jsonschema:"server-side filter: a boolean Go expression over version, retracted, deprecated, hasGoMod, isRedistributable, e.g. hasPrefix(version, \"v2.\") && !retracted. Applied per page: a page may be empty while nextPageToken is still set"`
 }
 
 func (s *Server) listVersions(ctx context.Context, _ *mcp.CallToolRequest, in ListVersionsInput) (*mcp.CallToolResult, pkgsite.PaginatedResponse[pkgsite.ModuleVersion], error) {
-	res, err := s.client.GetVersions(ctx, in.Path, pkgsite.PaginationOptions{Limit: limitOr(in.Limit), Token: in.Token})
+	res, err := s.client.GetVersions(ctx, in.Path, pkgsite.PaginationOptions{Limit: limitOr(in.Limit), Token: in.Token, Filter: in.Filter})
 	return result(res, err)
 }
 
@@ -139,10 +143,11 @@ type ListPackagesInput struct {
 	Version    string `json:"version,omitempty" jsonschema:"module version, e.g. v1.6.0; omit for the latest"`
 	Limit      int    `json:"limit,omitempty" jsonschema:"maximum packages to return; omit for a server-side default"`
 	Token      string `json:"token,omitempty" jsonschema:"pagination token: pass nextPageToken from a previous response to fetch the next page"`
+	Filter     string `json:"filter,omitempty" jsonschema:"server-side filter: a boolean Go expression over path, name, synopsis, isRedistributable, e.g. name == \"main\""`
 }
 
 func (s *Server) listPackages(ctx context.Context, _ *mcp.CallToolRequest, in ListPackagesInput) (*mcp.CallToolResult, pkgsite.PaginatedResponse[pkgsite.ModulePackageResponse], error) {
-	res, err := s.client.GetPackages(ctx, in.ModulePath, in.Version, pkgsite.PaginationOptions{Limit: limitOr(in.Limit), Token: in.Token})
+	res, err := s.client.GetPackages(ctx, in.ModulePath, in.Version, pkgsite.PaginationOptions{Limit: limitOr(in.Limit), Token: in.Token, Filter: in.Filter})
 	return result(res, err)
 }
 

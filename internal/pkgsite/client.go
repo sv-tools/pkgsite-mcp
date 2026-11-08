@@ -279,12 +279,15 @@ func (c *Client) endpoint(query url.Values, segments ...string) *url.URL {
 	return u
 }
 
-func setPagination(q url.Values, limit int, token string) {
-	if limit > 0 {
-		q.Set("limit", strconv.Itoa(limit))
+func setListOptions(q url.Values, opts PaginationOptions) {
+	if opts.Limit > 0 {
+		q.Set("limit", strconv.Itoa(opts.Limit))
 	}
-	if token != "" {
-		q.Set("token", token)
+	if opts.Token != "" {
+		q.Set("token", opts.Token)
+	}
+	if opts.Filter != "" {
+		q.Set("filter", opts.Filter)
 	}
 }
 
@@ -292,6 +295,10 @@ func setPagination(q url.Values, limit int, token string) {
 type PaginationOptions struct {
 	Limit int    // maximum items per page; 0 means the server default
 	Token string // page token from a previous response's NextPageToken
+	// Filter is a boolean Go expression evaluated server-side against each
+	// item; only matching items are returned. See
+	// https://pkg.go.dev/v1/api#filters for the supported syntax.
+	Filter string
 }
 
 // PackageOptions are options for GetPackage.
@@ -363,7 +370,7 @@ func (c *Client) GetSymbols(ctx context.Context, path, version string, opts Symb
 	if opts.GOARCH != "" {
 		q.Set("goarch", opts.GOARCH)
 	}
-	setPagination(q, opts.Limit, opts.Token)
+	setListOptions(q, opts.PaginationOptions)
 	var resp PackageSymbols
 	if err := c.get(ctx, c.endpoint(q, "v1", "symbols", path), &resp); err != nil {
 		return nil, err
@@ -387,7 +394,7 @@ func (c *Client) GetImportedBy(ctx context.Context, path, version string, opts I
 	if opts.Module != "" {
 		q.Set("module", opts.Module)
 	}
-	setPagination(q, opts.Limit, opts.Token)
+	setListOptions(q, opts.PaginationOptions)
 	var resp PackageImportedBy
 	if err := c.get(ctx, c.endpoint(q, "v1", "imported-by", path), &resp); err != nil {
 		return nil, err
@@ -425,7 +432,7 @@ func (c *Client) GetModule(ctx context.Context, path, version string, opts Modul
 // first, each with its commit time and deprecation and retraction status.
 func (c *Client) GetVersions(ctx context.Context, path string, opts PaginationOptions) (*PaginatedResponse[ModuleVersion], error) {
 	q := make(url.Values)
-	setPagination(q, opts.Limit, opts.Token)
+	setListOptions(q, opts)
 	var resp PaginatedResponse[ModuleVersion]
 	if err := c.get(ctx, c.endpoint(q, "v1", "versions", path), &resp); err != nil {
 		return nil, err
@@ -439,7 +446,7 @@ func (c *Client) GetVulns(ctx context.Context, path, version string, opts Pagina
 	if version != "" {
 		q.Set("version", version)
 	}
-	setPagination(q, opts.Limit, opts.Token)
+	setListOptions(q, opts)
 	var resp PaginatedResponse[Vulnerability]
 	if err := c.get(ctx, c.endpoint(q, "v1", "vulns", path), &resp); err != nil {
 		return nil, err
@@ -454,7 +461,7 @@ func (c *Client) GetPackages(ctx context.Context, modulePath, version string, op
 	if version != "" {
 		q.Set("version", version)
 	}
-	setPagination(q, opts.Limit, opts.Token)
+	setListOptions(q, opts)
 	var resp PackagesResponse
 	if err := c.get(ctx, c.endpoint(q, "v1", "packages", modulePath), &resp); err != nil {
 		return nil, err
@@ -484,7 +491,7 @@ func (c *Client) Search(ctx context.Context, query string, opts SearchOptions) (
 	if opts.Symbol != "" {
 		q.Set("symbol", opts.Symbol)
 	}
-	setPagination(q, opts.Limit, opts.Token)
+	setListOptions(q, opts.PaginationOptions)
 	var resp PaginatedResponse[SearchResult]
 	if err := c.get(ctx, c.endpoint(q, "v1", "search"), &resp); err != nil {
 		return nil, err

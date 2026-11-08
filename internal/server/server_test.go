@@ -195,6 +195,55 @@ func TestPaginatedToolAppliesDefaultLimit(t *testing.T) {
 	}
 }
 
+// Every list tool whose pkg.go.dev route filters by the documented JSON field
+// names forwards the filter argument; get_vulnerabilities deliberately does not
+// expose one, because that route evaluates filters against Go field names.
+func TestListToolsForwardFilter(t *testing.T) {
+	var gotFilter string
+	cs := connect(t, func(w http.ResponseWriter, r *http.Request) {
+		gotFilter = r.URL.Query().Get("filter")
+		_, _ = w.Write([]byte(`{}`))
+	})
+	const filter = `hasPrefix(path, "k8s.io/") && name != "main"`
+	for tool, args := range map[string]map[string]any{
+		"search":               {"query": "uuid"},
+		"get_package_symbols":  {"path": "github.com/google/uuid"},
+		"get_imported_by":      {"path": "github.com/google/uuid"},
+		"list_module_versions": {"path": "github.com/google/uuid"},
+		"list_module_packages": {"modulePath": "github.com/google/uuid"},
+	} {
+		gotFilter = ""
+		args["filter"] = filter
+		res, err := cs.CallTool(context.Background(), &mcp.CallToolParams{Name: tool, Arguments: args})
+		if err != nil {
+			t.Fatalf("%s: CallTool: %v", tool, err)
+		}
+		if res.IsError {
+			t.Fatalf("%s: tool error: %+v", tool, res.Content)
+		}
+		if gotFilter != filter {
+			t.Errorf("%s: forwarded filter = %q, want %q", tool, gotFilter, filter)
+		}
+	}
+
+	tools, err := cs.ListTools(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("ListTools: %v", err)
+	}
+	for _, tool := range tools.Tools {
+		if tool.Name != "get_vulnerabilities" {
+			continue
+		}
+		schema, ok := tool.InputSchema.(map[string]any)
+		if !ok {
+			t.Fatalf("get_vulnerabilities input schema type = %T, want map", tool.InputSchema)
+		}
+		if props, _ := schema["properties"].(map[string]any); props["filter"] != nil {
+			t.Error("get_vulnerabilities unexpectedly exposes a filter argument")
+		}
+	}
+}
+
 func TestSearchToolReturnsStructuredContent(t *testing.T) {
 	const body = `{"items":[{"packagePath":"github.com/google/uuid","synopsis":"UUIDs"}],"total":1}`
 	cs := connect(t, func(w http.ResponseWriter, r *http.Request) {
