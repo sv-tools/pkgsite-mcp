@@ -91,7 +91,7 @@ func TestGetPackageRequestAndDecode(t *testing.T) {
 }
 
 func TestSearchSetsQueryParam(t *testing.T) {
-	const body = `{"items":[{"packagePath":"github.com/google/uuid"}],"total":1}`
+	const body = `{"items":[{"packagePath":"github.com/google/uuid","importedByCounts":{"packages":113457,"modules":-1}}],"total":1}`
 	c, last := newTestClient(t, http.StatusOK, body)
 
 	res, err := c.Search(context.Background(), "uuid", SearchOptions{
@@ -111,7 +111,38 @@ func TestSearchSetsQueryParam(t *testing.T) {
 		}
 	}
 	if res.Total != 1 || len(res.Items) != 1 {
-		t.Errorf("unexpected result: %+v", res)
+		t.Fatalf("unexpected result: %+v", res)
+	}
+	// -1 is the API's "not known yet" marker and must survive decoding.
+	if got, want := res.Items[0].ImportedByCounts, (ImportedByCounts{Packages: 113457, Modules: -1}); got == nil || *got != want {
+		t.Errorf("importedByCounts = %+v, want %+v", got, want)
+	}
+}
+
+func TestGetPackageImportedByCounts(t *testing.T) {
+	c, last := newTestClient(t, http.StatusOK, `{"path":"github.com/google/uuid","importedByCounts":{"packages":10,"modules":4}}`)
+
+	pkg, err := c.GetPackage(context.Background(), "github.com/google/uuid", "", PackageOptions{ImportedByCounts: true})
+	if err != nil {
+		t.Fatalf("GetPackage: %v", err)
+	}
+	if got := last.URL.Query().Get("imported-by-counts"); got != "true" {
+		t.Errorf("query[imported-by-counts] = %q, want %q", got, "true")
+	}
+	if got, want := pkg.ImportedByCounts, (ImportedByCounts{Packages: 10, Modules: 4}); got == nil || *got != want {
+		t.Errorf("importedByCounts = %+v, want %+v", got, want)
+	}
+}
+
+func TestGetImportedByUnknownTotal(t *testing.T) {
+	c, _ := newTestClient(t, http.StatusOK, `{"modulePath":"m","importedBy":{"items":["a/b"],"total":-1}}`)
+
+	res, err := c.GetImportedBy(context.Background(), "m", "", ImportedByOptions{})
+	if err != nil {
+		t.Fatalf("GetImportedBy: %v", err)
+	}
+	if res.ImportedBy.Total != -1 {
+		t.Errorf("total = %d, want -1", res.ImportedBy.Total)
 	}
 }
 

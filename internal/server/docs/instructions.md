@@ -18,6 +18,10 @@ Key distinctions and tips:
 - When requesting documentation, prefer `doc=md` or `doc=text`; `doc=html` is far
   more verbose. README contents, full license texts, and import lists can be
   large, so request them only when needed.
+- To gauge adoption, use `importedByCounts` (packages and modules from other
+  modules that import a package), returned by `search` and, on request, by
+  `get_package`. Use `get_imported_by` only to list the actual importers. A count
+  or total of -1 means pkg.go.dev has not computed it yet, not zero importers.
 - `get_vulnerabilities` checks the Go vulnerability database; an empty result
   means no known vulnerabilities for that module version.
 - `list_module_versions` flags version health: `retracted` marks a version the

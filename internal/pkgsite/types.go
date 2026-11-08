@@ -41,7 +41,18 @@ type Package struct {
 	Docs              string    `json:"docs,omitempty"`
 	Imports           []string  `json:"imports,omitempty"`
 	Licenses          []License `json:"licenses,omitempty"`
+	// ImportedByCounts is set only when requested with the importedByCounts
+	// option.
+	ImportedByCounts *ImportedByCounts `json:"importedByCounts,omitempty"`
 	PackageInfo
+}
+
+// ImportedByCounts holds the number of packages and modules, from other
+// modules, that import a package. A count of -1 means it is not known yet,
+// for example because pkg.go.dev has not computed it.
+type ImportedByCounts struct {
+	Packages int `json:"packages"`
+	Modules  int `json:"modules"`
 }
 
 // PackagesResponse is the response for /v1/packages/{modulePath}.
@@ -68,8 +79,9 @@ type License struct {
 
 // PackageImportedBy is the response for /v1/imported-by/{packagePath}.
 type PackageImportedBy struct {
-	ModulePath string                    `json:"modulePath"`
-	Version    string                    `json:"version"`
+	ModulePath string `json:"modulePath"`
+	Version    string `json:"version"`
+	// ImportedBy.Total is -1 when the number of importers is not known yet.
 	ImportedBy PaginatedResponse[string] `json:"importedBy"`
 }
 
@@ -145,6 +157,8 @@ type SearchResult struct {
 	ModulePath  string `json:"modulePath"`
 	Version     string `json:"version"`
 	Synopsis    string `json:"synopsis"`
+	// ImportedByCounts gauges adoption without a separate get_imported_by call.
+	ImportedByCounts *ImportedByCounts `json:"importedByCounts,omitempty"`
 }
 
 // Vulnerability is a vulnerability report for a module path and version.

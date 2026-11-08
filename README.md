@@ -53,8 +53,8 @@ Use the absolute path to the binary if it is not on your `PATH`.
 
 | Tool                   | Description                                                                                      |
 |------------------------|--------------------------------------------------------------------------------------------------|
-| `search`               | Search pkg.go.dev for packages by name or keywords.                                              |
-| `get_package`          | Package details: module, version, synopsis, and optionally rendered docs, imports, and licenses. |
+| `search`               | Search pkg.go.dev for packages by name or keywords, with importer counts for each result.        |
+| `get_package`          | Package details: module, version, synopsis; optionally docs, imports, licenses, importer counts. |
 | `get_package_symbols`  | Exported symbols (functions, types, methods, vars, consts) of a package.                         |
 | `get_imported_by`      | Packages from other modules that import a given package (reverse deps; same-module excluded).    |
 | `get_module`           | Module details: version, commit time, repo URL, and optionally README and licenses.              |

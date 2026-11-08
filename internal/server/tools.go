@@ -52,6 +52,8 @@ type GetPackageInput struct {
 	Licenses bool   `json:"licenses,omitempty" jsonschema:"include full license info (types and text)"`
 	GOOS     string `json:"goos,omitempty" jsonschema:"target GOOS for build-constrained docs, e.g. linux"`
 	GOARCH   string `json:"goarch,omitempty" jsonschema:"target GOARCH for build-constrained docs, e.g. amd64"`
+
+	ImportedByCounts bool `json:"importedByCounts,omitempty" jsonschema:"include how many packages and modules from other modules import this package; -1 means not known yet"`
 }
 
 func (s *Server) getPackage(ctx context.Context, _ *mcp.CallToolRequest, in GetPackageInput) (*mcp.CallToolResult, pkgsite.Package, error) {
@@ -63,6 +65,8 @@ func (s *Server) getPackage(ctx context.Context, _ *mcp.CallToolRequest, in GetP
 		Licenses: in.Licenses,
 		GOOS:     in.GOOS,
 		GOARCH:   in.GOARCH,
+
+		ImportedByCounts: in.ImportedByCounts,
 	})
 	return result(res, err)
 }
